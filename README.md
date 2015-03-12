@@ -12,7 +12,7 @@ Any application written in Go can take advantage of these bindings.  Specificall
 
 
 ## <a id="state">Current State</a>
-Early stages.
+Early build-out and pre-documentation stages.  The basics around authentication and object models are there.
 
 
 ## <a id="usage">Usage</a>
