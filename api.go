@@ -22,6 +22,7 @@ type Client struct {
 	Token       string
 	SIOEndpoint url.URL
 	Http        http.Client
+	Insecure    string
 }
 
 type Cluster struct {
@@ -198,4 +199,14 @@ func NewClient() (client *Client, err error) {
 	}
 
 	return client, nil
+}
+
+func GetLink(links []*types.Link, rel string) (*types.Link, error) {
+	for _, link := range links {
+		if link.Rel == rel {
+			return link, nil
+		}
+	}
+
+	return &types.Link{}, errors.New("Couldn't find link")
 }

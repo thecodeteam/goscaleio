@@ -19,26 +19,32 @@ func NewSystem(client *Client) *System {
 	}
 }
 
-func (client *Client) FindSystem(instanceID string) (System, error) {
-	systems, err := client.GetInstance()
+func (client *Client) FindSystem(instanceID, href string) (System, error) {
+	systems, err := client.GetInstance(href)
 	if err != nil {
-		return System{}, errors.New("problem getting instances")
+		return System{}, fmt.Errorf("err: problem getting instances: %s", err)
 	}
 
 	for _, system := range systems {
-		if system.ID == instanceID {
-
+		if system.ID == instanceID || href != "" {
 			outSystem := NewSystem(client)
-			outSystem.System = &system
+			outSystem.System = system
 			return *outSystem, nil
 		}
 	}
-	return System{}, errors.New("error  systemid not found")
+	return System{}, fmt.Errorf("err: systemid not found")
 }
 
-func (system *System) GetStatistics() (statistics types.Statistics, err error) {
+func (system *System) GetStatistics() (statistics *types.Statistics, err error) {
 	endpoint := system.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/Statistics", system.System.ID)
+	// endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/Statistics", system.System.ID)
+
+	link, err := GetLink(system.System.Links, "/api/System/relationship/Statistics")
+	if err != nil {
+		return &types.Statistics{}, errors.New("Error: problem finding link")
+	}
+
+	endpoint.Path = link.HREF
 
 	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", system.client.Token)
@@ -46,12 +52,12 @@ func (system *System) GetStatistics() (statistics types.Statistics, err error) {
 
 	resp, err := checkResp(system.client.Http.Do(req))
 	if err != nil {
-		return types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
+		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if err = decodeBody(resp, &statistics); err != nil {
-		return types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
+		return &types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
 	}
 
 	// bs, err := ioutil.ReadAll(resp.Body)

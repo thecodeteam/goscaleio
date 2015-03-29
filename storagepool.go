@@ -8,7 +8,13 @@ import (
 
 func (protectionDomain *ProtectionDomain) GetStoragePool() (storagePools []*types.StoragePool, err error) {
 	endpoint := protectionDomain.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/ProtectionDomain::%v/relationships/StoragePool", protectionDomain.ProtectionDomain.ID)
+
+	for _, link := range protectionDomain.ProtectionDomain.Links {
+		if link.Rel == "/api/ProtectionDomain/relationship/StoragePool" {
+			endpoint.Path = link.HREF
+			break
+		}
+	}
 
 	req := protectionDomain.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", protectionDomain.client.Token)

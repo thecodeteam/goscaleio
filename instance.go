@@ -6,10 +6,14 @@ import (
 	types "github.com/emccode/goscaleio/types/v1"
 )
 
-func (client *Client) GetInstance() (systems []types.System, err error) {
+func (client *Client) GetInstance(systemhref string) (systems []*types.System, err error) {
 
 	endpoint := client.SIOEndpoint
-	endpoint.Path += "/types/System/instances"
+	if systemhref == "" {
+		endpoint.Path += "/types/System/instances"
+	} else {
+		endpoint.Path = systemhref
+	}
 
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", client.Token)
@@ -17,12 +21,20 @@ func (client *Client) GetInstance() (systems []types.System, err error) {
 
 	resp, err := checkResp(client.Http.Do(req))
 	if err != nil {
-		return []types.System{}, fmt.Errorf("problem getting response: %v", err)
+		return []*types.System{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &systems); err != nil {
-		return []types.System{}, fmt.Errorf("error decoding instances response: %s", err)
+	if systemhref == "" {
+		if err = decodeBody(resp, &systems); err != nil {
+			return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
+		}
+	} else {
+		system := &types.System{}
+		if err = decodeBody(resp, &system); err != nil {
+			return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
+		}
+		systems = append(systems, system)
 	}
 
 	// bs, err := ioutil.ReadAll(resp.Body)

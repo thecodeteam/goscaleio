@@ -21,7 +21,13 @@ func NewProtectionDomain(client *Client) *ProtectionDomain {
 
 func (system *System) GetProtectionDomain() (protectionDomains []*types.ProtectionDomain, err error) {
 	endpoint := system.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/ProtectionDomain", system.System.ID)
+
+	link, err := GetLink(system.System.Links, "/api/System/relationship/ProtectionDomain")
+	if err != nil {
+		return []*types.ProtectionDomain{}, errors.New("Error: problem finding link")
+	}
+
+	endpoint.Path = link.HREF
 
 	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", system.client.Token)
