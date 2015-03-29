@@ -177,3 +177,29 @@ type Sdc struct {
 	ID                 string `json:"id"`
 	Links              []Link `json:"links"`
 }
+
+type StoragePool struct {
+	ProtectionDomainID                               string      `json:"protectionDomainId"`
+	RebalanceioPriorityPolicy                        string      `json:"rebalanceIoPriorityPolicy"`
+	RebuildioPriorityPolicy                          string      `json:"rebuildIoPriorityPolicy"`
+	RebuildioPriorityBwLimitPerDeviceInKbps          int         `json:"rebuildIoPriorityBwLimitPerDeviceInKbps"`
+	RebuildioPriorityNumOfConcurrentIosPerDevice     int         `json:"rebuildIoPriorityNumOfConcurrentIosPerDevice"`
+	RebalanceioPriorityNumOfConcurrentIosPerDevice   int         `json:"rebalanceIoPriorityNumOfConcurrentIosPerDevice"`
+	RebalanceioPriorityBwLimitPerDeviceInKbps        int         `json:"rebalanceIoPriorityBwLimitPerDeviceInKbps"`
+	RebuildioPriorityAppIopsPerDeviceThreshold       interface{} `json:"rebuildIoPriorityAppIopsPerDeviceThreshold"`
+	RebalanceioPriorityAppIopsPerDeviceThreshold     interface{} `json:"rebalanceIoPriorityAppIopsPerDeviceThreshold"`
+	RebuildioPriorityAppBwPerDeviceThresholdInKbps   interface{} `json:"rebuildIoPriorityAppBwPerDeviceThresholdInKbps"`
+	RebalanceioPriorityAppBwPerDeviceThresholdInKbps interface{} `json:"rebalanceIoPriorityAppBwPerDeviceThresholdInKbps"`
+	RebuildioPriorityQuietPeriodInMsec               interface{} `json:"rebuildIoPriorityQuietPeriodInMsec"`
+	RebalanceioPriorityQuietPeriodInMsec             interface{} `json:"rebalanceIoPriorityQuietPeriodInMsec"`
+	ZeroPaddingEnabled                               bool        `json:"zeroPaddingEnabled"`
+	UseRmcache                                       bool        `json:"useRmcache"`
+	SparePercentage                                  int         `json:"sparePercentage"`
+	RmCacheWriteHandlingMode                         string      `json:"rmcacheWriteHandlingMode"`
+	RebuildEnabled                                   bool        `json:"rebuildEnabled"`
+	RebalanceEnabled                                 bool        `json:"rebalanceEnabled"`
+	NumofParallelRebuildRebalanceJobsPerDevice       int         `json:"numOfParallelRebuildRebalanceJobsPerDevice"`
+	Name                                             string      `json:"name"`
+	ID                                               string      `json:"id"`
+	Links                                            []Link
+}
