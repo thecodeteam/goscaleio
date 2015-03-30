@@ -179,29 +179,29 @@ type Sdc struct {
 }
 
 type StoragePool struct {
-	ProtectionDomainID                               string `json:"protectionDomainId"`
-	RebalanceioPriorityPolicy                        string `json:"rebalanceIoPriorityPolicy"`
-	RebuildioPriorityPolicy                          string `json:"rebuildIoPriorityPolicy"`
-	RebuildioPriorityBwLimitPerDeviceInKbps          int    `json:"rebuildIoPriorityBwLimitPerDeviceInKbps"`
-	RebuildioPriorityNumOfConcurrentIosPerDevice     int    `json:"rebuildIoPriorityNumOfConcurrentIosPerDevice"`
-	RebalanceioPriorityNumOfConcurrentIosPerDevice   int    `json:"rebalanceIoPriorityNumOfConcurrentIosPerDevice"`
-	RebalanceioPriorityBwLimitPerDeviceInKbps        int    `json:"rebalanceIoPriorityBwLimitPerDeviceInKbps"`
-	RebuildioPriorityAppIopsPerDeviceThreshold       int    `json:"rebuildIoPriorityAppIopsPerDeviceThreshold"`
-	RebalanceioPriorityAppIopsPerDeviceThreshold     int    `json:"rebalanceIoPriorityAppIopsPerDeviceThreshold"`
-	RebuildioPriorityAppBwPerDeviceThresholdInKbps   int    `json:"rebuildIoPriorityAppBwPerDeviceThresholdInKbps"`
-	RebalanceioPriorityAppBwPerDeviceThresholdInKbps int    `json:"rebalanceIoPriorityAppBwPerDeviceThresholdInKbps"`
-	RebuildioPriorityQuietPeriodInMsec               int    `json:"rebuildIoPriorityQuietPeriodInMsec"`
-	RebalanceioPriorityQuietPeriodInMsec             int    `json:"rebalanceIoPriorityQuietPeriodInMsec"`
-	ZeroPaddingEnabled                               bool   `json:"zeroPaddingEnabled"`
-	UseRmcache                                       bool   `json:"useRmcache"`
-	SparePercentage                                  int    `json:"sparePercentage"`
-	RmCacheWriteHandlingMode                         string `json:"rmcacheWriteHandlingMode"`
-	RebuildEnabled                                   bool   `json:"rebuildEnabled"`
-	RebalanceEnabled                                 bool   `json:"rebalanceEnabled"`
-	NumofParallelRebuildRebalanceJobsPerDevice       int    `json:"numOfParallelRebuildRebalanceJobsPerDevice"`
-	Name                                             string `json:"name"`
-	ID                                               string `json:"id"`
-	Links                                            []*Link
+	ProtectionDomainID                               string  `json:"protectionDomainId"`
+	RebalanceioPriorityPolicy                        string  `json:"rebalanceIoPriorityPolicy"`
+	RebuildioPriorityPolicy                          string  `json:"rebuildIoPriorityPolicy"`
+	RebuildioPriorityBwLimitPerDeviceInKbps          int     `json:"rebuildIoPriorityBwLimitPerDeviceInKbps"`
+	RebuildioPriorityNumOfConcurrentIosPerDevice     int     `json:"rebuildIoPriorityNumOfConcurrentIosPerDevice"`
+	RebalanceioPriorityNumOfConcurrentIosPerDevice   int     `json:"rebalanceIoPriorityNumOfConcurrentIosPerDevice"`
+	RebalanceioPriorityBwLimitPerDeviceInKbps        int     `json:"rebalanceIoPriorityBwLimitPerDeviceInKbps"`
+	RebuildioPriorityAppIopsPerDeviceThreshold       int     `json:"rebuildIoPriorityAppIopsPerDeviceThreshold"`
+	RebalanceioPriorityAppIopsPerDeviceThreshold     int     `json:"rebalanceIoPriorityAppIopsPerDeviceThreshold"`
+	RebuildioPriorityAppBwPerDeviceThresholdInKbps   int     `json:"rebuildIoPriorityAppBwPerDeviceThresholdInKbps"`
+	RebalanceioPriorityAppBwPerDeviceThresholdInKbps int     `json:"rebalanceIoPriorityAppBwPerDeviceThresholdInKbps"`
+	RebuildioPriorityQuietPeriodInMsec               int     `json:"rebuildIoPriorityQuietPeriodInMsec"`
+	RebalanceioPriorityQuietPeriodInMsec             int     `json:"rebalanceIoPriorityQuietPeriodInMsec"`
+	ZeroPaddingEnabled                               bool    `json:"zeroPaddingEnabled"`
+	UseRmcache                                       bool    `json:"useRmcache"`
+	SparePercentage                                  int     `json:"sparePercentage"`
+	RmCacheWriteHandlingMode                         string  `json:"rmcacheWriteHandlingMode"`
+	RebuildEnabled                                   bool    `json:"rebuildEnabled"`
+	RebalanceEnabled                                 bool    `json:"rebalanceEnabled"`
+	NumofParallelRebuildRebalanceJobsPerDevice       int     `json:"numOfParallelRebuildRebalanceJobsPerDevice"`
+	Name                                             string  `json:"name"`
+	ID                                               string  `json:"id"`
+	Links                                            []*Link `json:"links"`
 }
 
 type MappedSdcInfo struct {
@@ -213,7 +213,7 @@ type MappedSdcInfo struct {
 
 type Volume struct {
 	StoragePoolID           string           `json:"storagePoolId"`
-	UserMCache              bool             `json:"useRmcache"`
+	UseRmCache              bool             `json:"useRmcache"`
 	MappingToAllSdcsEnabled bool             `json:"mappingToAllSdcsEnabled"`
 	MappedSdcInfo           []*MappedSdcInfo `json:"mappedSdcInfo"`
 	IsObfuscated            bool             `json:"isObfuscated"`
@@ -226,5 +226,18 @@ type Volume struct {
 	CreationTime            int              `json:"creationTime"`
 	Name                    string           `json:"name"`
 	ID                      string           `json:"id"`
-	Links                   []*Link
+	Links                   []*Link          `json:"links"`
+}
+
+type VolumeParam struct {
+	ProtectionDomainID string `json:"protectionDomainId,omitempty"`
+	StoragePoolID      string `json:"storagePoolId,omitempty"`
+	UseRmCache         string `json:"useRmcache,omitempty"`
+	VolumeType         string `json:"volumeType,omitempty"`
+	VolumeSizeInKb     string `json:"volumeSizeInKb,omitempty"`
+	Name               string `json:"name,omitempty"`
+}
+
+type VolumeResp struct {
+	ID string `json:"id"`
 }

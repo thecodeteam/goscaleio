@@ -1,9 +1,12 @@
 package goscaleio
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -31,18 +34,20 @@ func NewVolume(client *Client) *Volume {
 	}
 }
 
-func (storagePool *StoragePool) GetVolume(storagepoolhref string) (volumes []*types.Volume, err error) {
+func (storagePool *StoragePool) GetVolume(volumehref string, volumeid string) (volumes []*types.Volume, err error) {
 
 	endpoint := storagePool.client.SIOEndpoint
 
-	if storagepoolhref == "" {
+	if volumeid != "" {
+		endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s", volumeid)
+	} else if volumehref == "" {
 		link, err := GetLink(storagePool.StoragePool.Links, "/api/StoragePool/relationship/Volume")
 		if err != nil {
 			return []*types.Volume{}, errors.New("Error: problem finding link")
 		}
 		endpoint.Path = link.HREF
 	} else {
-		endpoint.Path = storagepoolhref
+		endpoint.Path = volumehref
 	}
 
 	req := storagePool.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
@@ -55,16 +60,16 @@ func (storagePool *StoragePool) GetVolume(storagepoolhref string) (volumes []*ty
 	}
 	defer resp.Body.Close()
 
-	if storagepoolhref == "" {
+	if volumehref == "" && volumeid == "" {
 		if err = decodeBody(resp, &volumes); err != nil {
 			return []*types.Volume{}, fmt.Errorf("error decoding storage pool response: %s", err)
 		}
 	} else {
-		storagePool := &types.Volume{}
-		if err = decodeBody(resp, &storagePool); err != nil {
+		volume := &types.Volume{}
+		if err = decodeBody(resp, &volume); err != nil {
 			return []*types.Volume{}, fmt.Errorf("error decoding instances response: %s", err)
 		}
-		volumes = append(volumes, storagePool)
+		volumes = append(volumes, volume)
 	}
 	return volumes, nil
 }
@@ -133,4 +138,36 @@ func GetLocalVolumeMap() (mappedVolumes []*SdcMappedVolume, err error) {
 	}
 
 	return mappedVolumes, nil
+}
+
+func (storagePool *StoragePool) CreateVolume(volume *types.VolumeParam) (volumeResp *types.VolumeResp, err error) {
+
+	endpoint := storagePool.client.SIOEndpoint
+
+	endpoint.Path = "/api/types/Volume/instances"
+
+	volume.StoragePoolID = storagePool.StoragePool.ID
+	volume.ProtectionDomainID = storagePool.StoragePool.ProtectionDomainID
+
+	jsonOutput, err := json.Marshal(&volume)
+	if err != nil {
+		log.Fatalf("error marshaling: %s", err)
+	}
+
+	req := storagePool.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+	req.SetBasicAuth("", storagePool.client.Token)
+	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Content-Type", "application/json;version=1.0")
+
+	resp, err := checkResp(storagePool.client.Http.Do(req))
+	if err != nil {
+		return &types.VolumeResp{}, fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if err = decodeBody(resp, &volumeResp); err != nil {
+		return &types.VolumeResp{}, fmt.Errorf("error decoding volume creation response: %s", err)
+	}
+
+	return volumeResp, nil
 }
