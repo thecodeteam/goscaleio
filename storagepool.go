@@ -1,19 +1,36 @@
 package goscaleio
 
 import (
+	"errors"
 	"fmt"
 
 	types "github.com/emccode/goscaleio/types/v1"
 )
 
-func (protectionDomain *ProtectionDomain) GetStoragePool() (storagePools []*types.StoragePool, err error) {
+type StoragePool struct {
+	StoragePool *types.StoragePool
+	client      *Client
+}
+
+func NewStoragePool(client *Client) *StoragePool {
+	return &StoragePool{
+		StoragePool: new(types.StoragePool),
+		client:      client,
+	}
+}
+
+func (protectionDomain *ProtectionDomain) GetStoragePool(storagepoolhref string) (storagePools []*types.StoragePool, err error) {
+
 	endpoint := protectionDomain.client.SIOEndpoint
 
-	for _, link := range protectionDomain.ProtectionDomain.Links {
-		if link.Rel == "/api/ProtectionDomain/relationship/StoragePool" {
-			endpoint.Path = link.HREF
-			break
+	if storagepoolhref == "" {
+		link, err := GetLink(protectionDomain.ProtectionDomain.Links, "/api/ProtectionDomain/relationship/StoragePool")
+		if err != nil {
+			return []*types.StoragePool{}, errors.New("Error: problem finding link")
 		}
+		endpoint.Path = link.HREF
+	} else {
+		endpoint.Path = storagepoolhref
 	}
 
 	req := protectionDomain.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
@@ -26,25 +43,32 @@ func (protectionDomain *ProtectionDomain) GetStoragePool() (storagePools []*type
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &storagePools); err != nil {
-		return []*types.StoragePool{}, fmt.Errorf("error decoding storage pool response: %s", err)
+	if storagepoolhref == "" {
+		if err = decodeBody(resp, &storagePools); err != nil {
+			return []*types.StoragePool{}, fmt.Errorf("error decoding storage pool response: %s", err)
+		}
+	} else {
+		storagePool := &types.StoragePool{}
+		if err = decodeBody(resp, &storagePool); err != nil {
+			return []*types.StoragePool{}, fmt.Errorf("error decoding instances response: %s", err)
+		}
+		storagePools = append(storagePools, storagePool)
 	}
-
 	return storagePools, nil
 }
 
-// func (system *System) FindProtectionDomain(id, name string) (protectionDomain *types.ProtectionDomain, err error) {
-// 	protectionDomains, err := system.GetProtectionDomain()
-// 	if err != nil {
-// 		return &types.ProtectionDomain{}, errors.New("Error getting protection domains")
-// 	}
-//
-// 	for _, protectionDomain = range protectionDomains {
-// 		if protectionDomain.ID == id || protectionDomain.Name == name {
-// 			return protectionDomain, nil
-// 		}
-// 	}
-//
-// 	return &types.ProtectionDomain{}, errors.New("Couldn't find protection domain")
-// }
-//
+func (protectionDomain *ProtectionDomain) FindStoragePool(id, name, href string) (storagePool *types.StoragePool, err error) {
+	storagePools, err := protectionDomain.GetStoragePool(href)
+	if err != nil {
+		return &types.StoragePool{}, errors.New("Error getting protection domains")
+	}
+
+	for _, storagePool = range storagePools {
+		if storagePool.ID == id || storagePool.Name == name || href != "" {
+			return storagePool, nil
+		}
+	}
+
+	return &types.StoragePool{}, errors.New("Couldn't find protection domain")
+
+}

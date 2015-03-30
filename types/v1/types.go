@@ -203,3 +203,28 @@ type StoragePool struct {
 	ID                                               string `json:"id"`
 	Links                                            []*Link
 }
+
+type MappedSdcInfo struct {
+	SdcID         string `json:"sdcId"`
+	SdcIP         string `json:"sdcIp"`
+	LimitIops     int    `json:"limitIops"`
+	LimitBwInMbps int    `json:"limitBwInMbps"`
+}
+
+type Volume struct {
+	StoragePoolID           string           `json:"storagePoolId"`
+	UserMCache              bool             `json:"useRmcache"`
+	MappingToAllSdcsEnabled bool             `json:"mappingToAllSdcsEnabled"`
+	MappedSdcInfo           []*MappedSdcInfo `json:"mappedSdcInfo"`
+	IsObfuscated            bool             `json:"isObfuscated"`
+	VolumeType              string           `json:"volumeType"`
+	ConsistencyGroupID      string           `json:"consistencyGroupId"`
+	VTreeID                 string           `json:"vtreeId"`
+	AncestorVolumeID        string           `json:"ancestorVolumeId"`
+	MappedScsiInitiatorInfo string           `json:"mappedScsiInitiatorInfo"`
+	SizeInKb                int              `json:"sizeInKb"`
+	CreationTime            int              `json:"creationTime"`
+	Name                    string           `json:"name"`
+	ID                      string           `json:"id"`
+	Links                   []*Link
+}

@@ -56,7 +56,7 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 
 	token := string(bs)
 
-	if os.Getenv("SCALEIO_SHOW_BODY") == "true" {
+	if os.Getenv("GOSCALEIO_SHOW_BODY") == "true" {
 		fmt.Printf("%+v\n", token)
 	}
 
@@ -92,7 +92,7 @@ func decodeBody(resp *http.Response, out interface{}) error {
 		return err
 	}
 
-	if os.Getenv("SCALEIO_SHOW_BODY") == "true" {
+	if os.Getenv("GOSCALEIO_SHOW_BODY") == "true" {
 		var prettyJSON bytes.Buffer
 		_ = json.Indent(&prettyJSON, body, "", "    ")
 		fmt.Printf("%+v\n", prettyJSON.String())
