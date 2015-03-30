@@ -19,15 +19,32 @@ func NewProtectionDomain(client *Client) *ProtectionDomain {
 	}
 }
 
-func (system *System) GetProtectionDomain() (protectionDomains []*types.ProtectionDomain, err error) {
+func (system *System) GetProtectionDomain(protectiondomainhref string) (protectionDomains []*types.ProtectionDomain, err error) {
+
+	// if systemhref == "" {
+	// 	if err = decodeBody(resp, &systems); err != nil {
+	// 		return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
+	// 	}
+	// } else {
+	// 	system := &types.System{}
+	// 	if err = decodeBody(resp, &system); err != nil {
+	// 		return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
+	// 	}
+	// 	systems = append(systems, system)
+	// }
+
 	endpoint := system.client.SIOEndpoint
 
-	link, err := GetLink(system.System.Links, "/api/System/relationship/ProtectionDomain")
-	if err != nil {
-		return []*types.ProtectionDomain{}, errors.New("Error: problem finding link")
-	}
+	if protectiondomainhref == "" {
+		link, err := GetLink(system.System.Links, "/api/System/relationship/ProtectionDomain")
+		if err != nil {
+			return []*types.ProtectionDomain{}, errors.New("Error: problem finding link")
+		}
 
-	endpoint.Path = link.HREF
+		endpoint.Path = link.HREF
+	} else {
+		endpoint.Path = protectiondomainhref
+	}
 
 	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", system.client.Token)
@@ -39,8 +56,17 @@ func (system *System) GetProtectionDomain() (protectionDomains []*types.Protecti
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &protectionDomains); err != nil {
-		return []*types.ProtectionDomain{}, fmt.Errorf("error decoding instances response: %s", err)
+	if protectiondomainhref == "" {
+		if err = decodeBody(resp, &protectionDomains); err != nil {
+			return []*types.ProtectionDomain{}, fmt.Errorf("error decoding instances response: %s", err)
+		}
+	} else {
+		protectionDomain := &types.ProtectionDomain{}
+		if err = decodeBody(resp, &protectionDomain); err != nil {
+			return []*types.ProtectionDomain{}, fmt.Errorf("error decoding instances response: %s", err)
+		}
+		protectionDomains = append(protectionDomains, protectionDomain)
+
 	}
 	//
 	// bs, err := ioutil.ReadAll(resp.Body)
@@ -54,17 +80,18 @@ func (system *System) GetProtectionDomain() (protectionDomains []*types.Protecti
 	return protectionDomains, nil
 }
 
-func (system *System) FindProtectionDomain(id, name string) (protectionDomain *types.ProtectionDomain, err error) {
-	protectionDomains, err := system.GetProtectionDomain()
+func (system *System) FindProtectionDomain(id, name, href string) (protectionDomain *types.ProtectionDomain, err error) {
+	protectionDomains, err := system.GetProtectionDomain(href)
 	if err != nil {
 		return &types.ProtectionDomain{}, errors.New("Error getting protection domains")
 	}
 
 	for _, protectionDomain = range protectionDomains {
-		if protectionDomain.ID == id || protectionDomain.Name == name {
+		if protectionDomain.ID == id || protectionDomain.Name == name || href != "" {
 			return protectionDomain, nil
 		}
 	}
 
 	return &types.ProtectionDomain{}, errors.New("Couldn't find protection domain")
+
 }
