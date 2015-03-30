@@ -137,69 +137,69 @@ type Statistics struct {
 }
 
 type User struct {
-	SystemID              string `json:"systemId"`
-	UserRole              string `json:"userRole"`
-	PasswordChangeRequire bool   `json:"passwordChangeRequired"`
-	Name                  string `json:"name"`
-	ID                    string `json:"id"`
-	Links                 []Link `json:"links"`
+	SystemID              string  `json:"systemId"`
+	UserRole              string  `json:"userRole"`
+	PasswordChangeRequire bool    `json:"passwordChangeRequired"`
+	Name                  string  `json:"name"`
+	ID                    string  `json:"id"`
+	Links                 []*Link `json:"links"`
 }
 
 type ScsiInitiator struct {
-	Name     string `json:"name"`
-	IQN      string `json:"iqn"`
-	SystemID string `json:"systemID"`
-	Links    []Link `json:"links"`
+	Name     string  `json:"name"`
+	IQN      string  `json:"iqn"`
+	SystemID string  `json:"systemID"`
+	Links    []*Link `json:"links"`
 }
 
 type ProtectionDomain struct {
-	SystemID                          string `json:"systemId"`
-	RebuildNetworkThrottlingInKbps    int    `json:"rebuildNetworkThrottlingInKbps"`
-	RebalanceNetworkThrottlingInKbps  int    `json:"rebalanceNetworkThrottlingInKbps"`
-	OverallIoNetworkThrottlingInKbps  int    `json:"overallIoNetworkThrottlingInKbps"`
-	OverallIoNetworkThrottlingEnabled bool   `json:"overallIoNetworkThrottlingEnabled"`
-	RebuildNetworkThrottlingEnabled   bool   `json:"rebuildNetworkThrottlingEnabled"`
-	RebalanceNetworkThrottlingEnabled bool   `json:"rebalanceNetworkThrottlingEnabled"`
-	ProtectionDomainState             string `json:"protectionDomainState"`
-	Name                              string `json:"name"`
-	ID                                string `json:"id"`
-	Links                             []Link `json:"links"`
+	SystemID                          string  `json:"systemId"`
+	RebuildNetworkThrottlingInKbps    int     `json:"rebuildNetworkThrottlingInKbps"`
+	RebalanceNetworkThrottlingInKbps  int     `json:"rebalanceNetworkThrottlingInKbps"`
+	OverallIoNetworkThrottlingInKbps  int     `json:"overallIoNetworkThrottlingInKbps"`
+	OverallIoNetworkThrottlingEnabled bool    `json:"overallIoNetworkThrottlingEnabled"`
+	RebuildNetworkThrottlingEnabled   bool    `json:"rebuildNetworkThrottlingEnabled"`
+	RebalanceNetworkThrottlingEnabled bool    `json:"rebalanceNetworkThrottlingEnabled"`
+	ProtectionDomainState             string  `json:"protectionDomainState"`
+	Name                              string  `json:"name"`
+	ID                                string  `json:"id"`
+	Links                             []*Link `json:"links"`
 }
 
 type Sdc struct {
-	SystemID           string `json:"systemId"`
-	SdcApproved        bool   `json:"sdcApproved"`
-	SdcIp              string `json:"SdcIp"`
-	OnVmWare           bool   `json:"onVmWare"`
-	SdcGuid            string `json:"sdcGuid"`
-	MdmConnectionState string `json:"mdmConnectionState"`
-	Name               string `json:"name"`
-	ID                 string `json:"id"`
-	Links              []Link `json:"links"`
+	SystemID           string  `json:"systemId"`
+	SdcApproved        bool    `json:"sdcApproved"`
+	SdcIp              string  `json:"SdcIp"`
+	OnVmWare           bool    `json:"onVmWare"`
+	SdcGuid            string  `json:"sdcGuid"`
+	MdmConnectionState string  `json:"mdmConnectionState"`
+	Name               string  `json:"name"`
+	ID                 string  `json:"id"`
+	Links              []*Link `json:"links"`
 }
 
 type StoragePool struct {
-	ProtectionDomainID                               string      `json:"protectionDomainId"`
-	RebalanceioPriorityPolicy                        string      `json:"rebalanceIoPriorityPolicy"`
-	RebuildioPriorityPolicy                          string      `json:"rebuildIoPriorityPolicy"`
-	RebuildioPriorityBwLimitPerDeviceInKbps          int         `json:"rebuildIoPriorityBwLimitPerDeviceInKbps"`
-	RebuildioPriorityNumOfConcurrentIosPerDevice     int         `json:"rebuildIoPriorityNumOfConcurrentIosPerDevice"`
-	RebalanceioPriorityNumOfConcurrentIosPerDevice   int         `json:"rebalanceIoPriorityNumOfConcurrentIosPerDevice"`
-	RebalanceioPriorityBwLimitPerDeviceInKbps        int         `json:"rebalanceIoPriorityBwLimitPerDeviceInKbps"`
-	RebuildioPriorityAppIopsPerDeviceThreshold       interface{} `json:"rebuildIoPriorityAppIopsPerDeviceThreshold"`
-	RebalanceioPriorityAppIopsPerDeviceThreshold     interface{} `json:"rebalanceIoPriorityAppIopsPerDeviceThreshold"`
-	RebuildioPriorityAppBwPerDeviceThresholdInKbps   interface{} `json:"rebuildIoPriorityAppBwPerDeviceThresholdInKbps"`
-	RebalanceioPriorityAppBwPerDeviceThresholdInKbps interface{} `json:"rebalanceIoPriorityAppBwPerDeviceThresholdInKbps"`
-	RebuildioPriorityQuietPeriodInMsec               interface{} `json:"rebuildIoPriorityQuietPeriodInMsec"`
-	RebalanceioPriorityQuietPeriodInMsec             interface{} `json:"rebalanceIoPriorityQuietPeriodInMsec"`
-	ZeroPaddingEnabled                               bool        `json:"zeroPaddingEnabled"`
-	UseRmcache                                       bool        `json:"useRmcache"`
-	SparePercentage                                  int         `json:"sparePercentage"`
-	RmCacheWriteHandlingMode                         string      `json:"rmcacheWriteHandlingMode"`
-	RebuildEnabled                                   bool        `json:"rebuildEnabled"`
-	RebalanceEnabled                                 bool        `json:"rebalanceEnabled"`
-	NumofParallelRebuildRebalanceJobsPerDevice       int         `json:"numOfParallelRebuildRebalanceJobsPerDevice"`
-	Name                                             string      `json:"name"`
-	ID                                               string      `json:"id"`
-	Links                                            []Link
+	ProtectionDomainID                               string `json:"protectionDomainId"`
+	RebalanceioPriorityPolicy                        string `json:"rebalanceIoPriorityPolicy"`
+	RebuildioPriorityPolicy                          string `json:"rebuildIoPriorityPolicy"`
+	RebuildioPriorityBwLimitPerDeviceInKbps          int    `json:"rebuildIoPriorityBwLimitPerDeviceInKbps"`
+	RebuildioPriorityNumOfConcurrentIosPerDevice     int    `json:"rebuildIoPriorityNumOfConcurrentIosPerDevice"`
+	RebalanceioPriorityNumOfConcurrentIosPerDevice   int    `json:"rebalanceIoPriorityNumOfConcurrentIosPerDevice"`
+	RebalanceioPriorityBwLimitPerDeviceInKbps        int    `json:"rebalanceIoPriorityBwLimitPerDeviceInKbps"`
+	RebuildioPriorityAppIopsPerDeviceThreshold       int    `json:"rebuildIoPriorityAppIopsPerDeviceThreshold"`
+	RebalanceioPriorityAppIopsPerDeviceThreshold     int    `json:"rebalanceIoPriorityAppIopsPerDeviceThreshold"`
+	RebuildioPriorityAppBwPerDeviceThresholdInKbps   int    `json:"rebuildIoPriorityAppBwPerDeviceThresholdInKbps"`
+	RebalanceioPriorityAppBwPerDeviceThresholdInKbps int    `json:"rebalanceIoPriorityAppBwPerDeviceThresholdInKbps"`
+	RebuildioPriorityQuietPeriodInMsec               int    `json:"rebuildIoPriorityQuietPeriodInMsec"`
+	RebalanceioPriorityQuietPeriodInMsec             int    `json:"rebalanceIoPriorityQuietPeriodInMsec"`
+	ZeroPaddingEnabled                               bool   `json:"zeroPaddingEnabled"`
+	UseRmcache                                       bool   `json:"useRmcache"`
+	SparePercentage                                  int    `json:"sparePercentage"`
+	RmCacheWriteHandlingMode                         string `json:"rmcacheWriteHandlingMode"`
+	RebuildEnabled                                   bool   `json:"rebuildEnabled"`
+	RebalanceEnabled                                 bool   `json:"rebalanceEnabled"`
+	NumofParallelRebuildRebalanceJobsPerDevice       int    `json:"numOfParallelRebuildRebalanceJobsPerDevice"`
+	Name                                             string `json:"name"`
+	ID                                               string `json:"id"`
+	Links                                            []*Link
 }
