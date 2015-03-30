@@ -247,3 +247,9 @@ type MapVolumeSdcParam struct {
 	AllowMultipleMappings string `json:"allowMultipleMappings,omitempty"`
 	AllSdcs               string `json:"allSdcs,omitempty"`
 }
+
+type UnmapVolumeSdcParam struct {
+	SdcID                string `json:"sdcId,omitempty"`
+	IgnoreScsiInitiators string `json:"ignoreScsiInitiators,omitempty"`
+	AllSdcs              string `json:"allSdcs,omitempty"`
+}
