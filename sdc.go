@@ -1,8 +1,11 @@
 package goscaleio
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -109,5 +112,28 @@ func GetSdcLocalGUID() (sdcGUID string, err error) {
 	sdcGUID = strings.Replace(string(out), "\n", "", -1)
 
 	return sdcGUID, nil
+}
 
+func (volume *Volume) MapVolumeSdc(mapVolumeSdcParam *types.MapVolumeSdcParam) (err error) {
+	endpoint := volume.client.SIOEndpoint
+
+	endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s/action/addMappedSdc", volume.Volume.ID)
+
+	jsonOutput, err := json.Marshal(&mapVolumeSdcParam)
+	if err != nil {
+		log.Fatalf("error marshaling: %s", err)
+	}
+
+	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+	req.SetBasicAuth("", volume.client.Token)
+	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Content-Type", "application/json;version=1.0")
+
+	resp, err := checkResp(volume.client.Http.Do(req))
+	if err != nil {
+		return fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	return nil
 }

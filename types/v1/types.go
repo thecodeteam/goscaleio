@@ -241,3 +241,9 @@ type VolumeParam struct {
 type VolumeResp struct {
 	ID string `json:"id"`
 }
+
+type MapVolumeSdcParam struct {
+	SdcID                 string `json:"sdcId,omitempty"`
+	AllowMultipleMappings string `json:"allowMultipleMappings,omitempty"`
+	AllSdcs               string `json:"allSdcs,omitempty"`
+}
