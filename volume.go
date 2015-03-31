@@ -171,3 +171,29 @@ func (storagePool *StoragePool) CreateVolume(volume *types.VolumeParam) (volumeR
 
 	return volumeResp, nil
 }
+
+func (volume *Volume) GetVTree() (vtree *types.VTree, err error) {
+
+	endpoint := volume.client.SIOEndpoint
+
+	link, err := GetLink(volume.Volume.Links, "/api/parent/relationship/vtreeId")
+	if err != nil {
+		return &types.VTree{}, errors.New("Error: problem finding link")
+	}
+	endpoint.Path = link.HREF
+
+	req := volume.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
+	req.SetBasicAuth("", volume.client.Token)
+	req.Header.Add("Accept", "application/json;version=1.0")
+
+	resp, err := checkResp(volume.client.Http.Do(req))
+	if err != nil {
+		return &types.VTree{}, fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if err = decodeBody(resp, &vtree); err != nil {
+		return &types.VTree{}, fmt.Errorf("error decoding vtree response: %s", err)
+	}
+	return vtree, nil
+}

@@ -71,7 +71,7 @@ func (system *System) GetStatistics() (statistics *types.Statistics, err error) 
 	return statistics, nil
 }
 
-func (system *System) CreateSnapshot(snapshotVolumesParam *types.SnapshotVolumesParam) (snapshotVolumesResp *types.SnapshotVolumesResp, err error) {
+func (system *System) CreateSnapshotConsistencyGroup(snapshotVolumesParam *types.SnapshotVolumesParam) (snapshotVolumesResp *types.SnapshotVolumesResp, err error) {
 	endpoint := system.client.SIOEndpoint
 	// endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/Statistics", system.System.ID)
 

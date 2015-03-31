@@ -267,3 +267,10 @@ type SnapshotVolumesResp struct {
 	VolumeIDList    []string `json:"volumeIdList"`
 	SnapshotGroupID string   `json:"snapshotGroupId"`
 }
+
+type VTree struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	BaseVolumeID  string `json:"baseVolumeId"`
+	StoragePoolID string `json:"storagePoolId"`
+}
