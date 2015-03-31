@@ -269,8 +269,13 @@ type SnapshotVolumesResp struct {
 }
 
 type VTree struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	BaseVolumeID  string `json:"baseVolumeId"`
-	StoragePoolID string `json:"storagePoolId"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	BaseVolumeID  string  `json:"baseVolumeId"`
+	StoragePoolID string  `json:"storagePoolId"`
+	Links         []*Link `json:"links"`
+}
+
+type RemoveVolumeParam struct {
+	RemoveMode string `json:"removeMode"`
 }

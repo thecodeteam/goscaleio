@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -34,7 +33,7 @@ func NewVolume(client *Client) *Volume {
 	}
 }
 
-func (storagePool *StoragePool) GetVolume(volumehref string, volumeid string) (volumes []*types.Volume, err error) {
+func (storagePool *StoragePool) GetVolume(volumehref string, volumeid string, ancestorvolumeid string) (volumes []*types.Volume, err error) {
 
 	endpoint := storagePool.client.SIOEndpoint
 
@@ -64,6 +63,13 @@ func (storagePool *StoragePool) GetVolume(volumehref string, volumeid string) (v
 		if err = decodeBody(resp, &volumes); err != nil {
 			return []*types.Volume{}, fmt.Errorf("error decoding storage pool response: %s", err)
 		}
+		var volumesNew []*types.Volume
+		for _, volume := range volumes {
+			if volume.AncestorVolumeID == ancestorvolumeid {
+				volumesNew = append(volumesNew, volume)
+			}
+		}
+		volumes = volumesNew
 	} else {
 		volume := &types.Volume{}
 		if err = decodeBody(resp, &volume); err != nil {
@@ -151,7 +157,7 @@ func (storagePool *StoragePool) CreateVolume(volume *types.VolumeParam) (volumeR
 
 	jsonOutput, err := json.Marshal(&volume)
 	if err != nil {
-		log.Fatalf("error marshaling: %s", err)
+		return &types.VolumeResp{}, fmt.Errorf("error marshaling: %s", err)
 	}
 
 	req := storagePool.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
@@ -196,4 +202,41 @@ func (volume *Volume) GetVTree() (vtree *types.VTree, err error) {
 		return &types.VTree{}, fmt.Errorf("error decoding vtree response: %s", err)
 	}
 	return vtree, nil
+}
+
+func (volume *Volume) RemoveVolume(removeMode string) (err error) {
+
+	endpoint := volume.client.SIOEndpoint
+
+	link, err := GetLink(volume.Volume.Links, "self")
+	if err != nil {
+		return errors.New("Error: problem finding link")
+	}
+	endpoint.Path = fmt.Sprintf("%v/action/removeVolume", link.HREF)
+
+	if removeMode == "" {
+		removeMode = "ONLY_ME"
+	}
+	removeVolumeParam := &types.RemoveVolumeParam{
+		RemoveMode: removeMode,
+	}
+
+	jsonOutput, err := json.Marshal(&removeVolumeParam)
+	if err != nil {
+		return fmt.Errorf("error marshaling: %s", err)
+	}
+
+	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+
+	req.SetBasicAuth("", volume.client.Token)
+	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Content-Type", "application/json;version=1.0")
+
+	resp, err := checkResp(volume.client.Http.Do(req))
+	if err != nil {
+		return fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	return nil
 }
