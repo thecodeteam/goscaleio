@@ -71,9 +71,14 @@ func (system *System) FindSdc(field, value string) (sdc *Sdc, err error) {
 	return &Sdc{}, errors.New("Couldn't find SDC")
 }
 
-func (sdc *Sdc) GetStatistics() (statistics types.Statistics, err error) {
+func (sdc *Sdc) GetStatistics() (statistics *types.Statistics, err error) {
 	endpoint := sdc.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/Sdc::%v/relationships/Statistics", sdc.Sdc.ID)
+
+	link, err := GetLink(sdc.Sdc.Links, "/api/Sdc/relationship/Statistics")
+	if err != nil {
+		return &types.Statistics{}, errors.New("Error: problem finding link")
+	}
+	endpoint.Path = link.HREF
 
 	req := sdc.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", sdc.client.Token)
@@ -81,21 +86,41 @@ func (sdc *Sdc) GetStatistics() (statistics types.Statistics, err error) {
 
 	resp, err := checkResp(sdc.client.Http.Do(req))
 	if err != nil {
-		return types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
+		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if err = decodeBody(resp, &statistics); err != nil {
-		return types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
+		return &types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
 	}
 
-	// bs, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return errors.New("error reading body")
-	// }
-	//
-	// fmt.Println(string(bs))
 	return statistics, nil
+}
+
+func (sdc *Sdc) GetVolume() (volumes []*types.Volume, err error) {
+	endpoint := sdc.client.SIOEndpoint
+
+	link, err := GetLink(sdc.Sdc.Links, "/api/Sdc/relationship/Volume")
+	if err != nil {
+		return []*types.Volume{}, errors.New("Error: problem finding link")
+	}
+	endpoint.Path = link.HREF
+
+	req := sdc.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
+	req.SetBasicAuth("", sdc.client.Token)
+	req.Header.Add("Accept", "application/json;version=1.0")
+
+	resp, err := checkResp(sdc.client.Http.Do(req))
+	if err != nil {
+		return []*types.Volume{}, fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if err = decodeBody(resp, &volumes); err != nil {
+		return []*types.Volume{}, fmt.Errorf("error decoding instances response: %s", err)
+	}
+
+	return volumes, nil
 }
 
 func GetSdcLocalGUID() (sdcGUID string, err error) {
@@ -145,7 +170,7 @@ func (volume *Volume) UnmapVolumeSdc(unmapVolumeSdcParam *types.UnmapVolumeSdcPa
 
 	jsonOutput, err := json.Marshal(&unmapVolumeSdcParam)
 	if err != nil {
-		log.Fatalf("error marshaling: %s", err)
+		return fmt.Errorf("error marshaling: %s", err)
 	}
 
 	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))

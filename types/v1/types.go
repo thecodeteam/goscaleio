@@ -253,3 +253,17 @@ type UnmapVolumeSdcParam struct {
 	IgnoreScsiInitiators string `json:"ignoreScsiInitiators,omitempty"`
 	AllSdcs              string `json:"allSdcs,omitempty"`
 }
+
+type SnapshotDef struct {
+	VolumeID     string `json:"volumeId,omitempty"`
+	SnapshotName string `json:"snapshotName,omitempty"`
+}
+
+type SnapshotVolumesParam struct {
+	SnapshotDefs []*SnapshotDef `json:"snapshotDefs"`
+}
+
+type SnapshotVolumesResp struct {
+	VolumeIDList    []string `json:"volumeIdList"`
+	SnapshotGroupID string   `json:"snapshotGroupId"`
+}

@@ -1,6 +1,8 @@
 package goscaleio
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -67,4 +69,39 @@ func (system *System) GetStatistics() (statistics *types.Statistics, err error) 
 	//
 	// fmt.Println(string(bs))
 	return statistics, nil
+}
+
+func (system *System) CreateSnapshot(snapshotVolumesParam *types.SnapshotVolumesParam) (snapshotVolumesResp *types.SnapshotVolumesResp, err error) {
+	endpoint := system.client.SIOEndpoint
+	// endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/Statistics", system.System.ID)
+
+	link, err := GetLink(system.System.Links, "self")
+	if err != nil {
+		return &types.SnapshotVolumesResp{}, errors.New("Error: problem finding link")
+	}
+
+	endpoint.Path = fmt.Sprintf("%v/action/snapshotVolumes", link.HREF)
+
+	jsonOutput, err := json.Marshal(&snapshotVolumesParam)
+	if err != nil {
+		return &types.SnapshotVolumesResp{}, fmt.Errorf("error marshaling: %s", err)
+	}
+
+	req := system.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+	req.SetBasicAuth("", system.client.Token)
+	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Content-Type", "application/json;version=1.0")
+
+	resp, err := checkResp(system.client.Http.Do(req))
+	if err != nil {
+		return &types.SnapshotVolumesResp{}, fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if err = decodeBody(resp, &snapshotVolumesResp); err != nil {
+		return &types.SnapshotVolumesResp{}, fmt.Errorf("error decoding snapshotvolumes response: %s", err)
+	}
+
+	return snapshotVolumesResp, nil
+
 }
