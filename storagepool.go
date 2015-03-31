@@ -60,7 +60,7 @@ func (protectionDomain *ProtectionDomain) GetStoragePool(storagepoolhref string)
 func (protectionDomain *ProtectionDomain) FindStoragePool(id, name, href string) (storagePool *types.StoragePool, err error) {
 	storagePools, err := protectionDomain.GetStoragePool(href)
 	if err != nil {
-		return &types.StoragePool{}, errors.New("Error getting protection domains")
+		return &types.StoragePool{}, fmt.Errorf("Error getting protection domains %s", err)
 	}
 
 	for _, storagePool = range storagePools {

@@ -242,6 +242,14 @@ type VolumeResp struct {
 	ID string `json:"id"`
 }
 
+type VolumeQeryIdByKeyParam struct {
+	Name string `json:"name"`
+}
+
+type VolumeQeryBySelectedIdsParam struct {
+	IDs []string `json:"ids"`
+}
+
 type MapVolumeSdcParam struct {
 	SdcID                 string `json:"sdcId,omitempty"`
 	AllowMultipleMappings string `json:"allowMultipleMappings,omitempty"`

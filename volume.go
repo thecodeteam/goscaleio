@@ -33,9 +33,16 @@ func NewVolume(client *Client) *Volume {
 	}
 }
 
-func (storagePool *StoragePool) GetVolume(volumehref string, volumeid string, ancestorvolumeid string) (volumes []*types.Volume, err error) {
+func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid, volumename string) (volumes []*types.Volume, err error) {
 
 	endpoint := storagePool.client.SIOEndpoint
+
+	if volumename != "" {
+		volumeid, err = storagePool.FindVolumeID(volumename)
+		if err != nil {
+			return []*types.Volume{}, fmt.Errorf("Error: problem finding volume: %s", err)
+		}
+	}
 
 	if volumeid != "" {
 		endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s", volumeid)
@@ -80,20 +87,41 @@ func (storagePool *StoragePool) GetVolume(volumehref string, volumeid string, an
 	return volumes, nil
 }
 
-func (storagePool *StoragePool) FindVolume(id, name, href string) (volume *types.Volume, err error) {
-	// volumes, err := storagePool.GetVolume(href)
-	// if err != nil {
-	// 	return &types.Volume{}, errors.New("Error getting volumes")
-	// }
-	//
-	// for _, volume = range volumes {
-	// 	if volume.ID == id || volume.Name == name || href != "" {
-	// 		return volume, nil
-	// 	}
-	// }
-	//
-	// return &types.Volume{}, errors.New("Couldn't find volumes")
-	return &types.Volume{}, nil
+func (storagePool *StoragePool) FindVolumeID(volumename string) (volumeID string, err error) {
+
+	endpoint := storagePool.client.SIOEndpoint
+
+	volumeQeryIdByKeyParam := &types.VolumeQeryIdByKeyParam{}
+	volumeQeryIdByKeyParam.Name = volumename
+
+	jsonOutput, err := json.Marshal(&volumeQeryIdByKeyParam)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling: %s", err)
+	}
+	endpoint.Path = fmt.Sprintf("/api/types/Volume/instances/action/queryIdByKey")
+
+	req := storagePool.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+	req.SetBasicAuth("", storagePool.client.Token)
+	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Content-Type", "application/json;version=1.0")
+
+	resp, err := checkResp(storagePool.client.Http.Do(req))
+	if err != nil {
+		return "", fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.New("error reading body")
+	}
+
+	volumeID = string(bs)
+
+	volumeID = strings.TrimRight(volumeID, `"`)
+	volumeID = strings.TrimLeft(volumeID, `"`)
+
+	return volumeID, nil
 }
 
 func GetLocalVolumeMap() (mappedVolumes []*SdcMappedVolume, err error) {

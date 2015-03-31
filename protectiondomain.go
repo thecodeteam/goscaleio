@@ -21,18 +21,6 @@ func NewProtectionDomain(client *Client) *ProtectionDomain {
 
 func (system *System) GetProtectionDomain(protectiondomainhref string) (protectionDomains []*types.ProtectionDomain, err error) {
 
-	// if systemhref == "" {
-	// 	if err = decodeBody(resp, &systems); err != nil {
-	// 		return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
-	// 	}
-	// } else {
-	// 	system := &types.System{}
-	// 	if err = decodeBody(resp, &system); err != nil {
-	// 		return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
-	// 	}
-	// 	systems = append(systems, system)
-	// }
-
 	endpoint := system.client.SIOEndpoint
 
 	if protectiondomainhref == "" {
@@ -83,7 +71,7 @@ func (system *System) GetProtectionDomain(protectiondomainhref string) (protecti
 func (system *System) FindProtectionDomain(id, name, href string) (protectionDomain *types.ProtectionDomain, err error) {
 	protectionDomains, err := system.GetProtectionDomain(href)
 	if err != nil {
-		return &types.ProtectionDomain{}, errors.New("Error getting protection domains")
+		return &types.ProtectionDomain{}, fmt.Errorf("Error getting protection domains %s", err)
 	}
 
 	for _, protectionDomain = range protectionDomains {
