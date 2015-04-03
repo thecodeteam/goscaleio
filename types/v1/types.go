@@ -1,11 +1,5 @@
 package goscaleio
 
-import "github.com/vmware/govcloudair/types/v56"
-
-// Type: ErrorType
-// Namespace: http://www.vmware.com/vcloud/v1.5
-// Description: The standard error message type used in the vCloud REST API.
-// Since: 0.9
 type Error struct {
 	Message                 string `xml:"message,attr"`
 	MajorErrorCode          int    `xml:"majorErrorCode,attr"`
@@ -14,9 +8,9 @@ type Error struct {
 	StackTrace              string `xml:"stackTrace,attr,omitempty"`
 }
 
-type session struct {
-	Link []*types.Link `xml:"Link"`
-}
+// type session struct {
+// 	Link []*types.Link `xml:"Link"`
+// }
 
 type System struct {
 	MdmMode                               string   `json:"mdmMode"`

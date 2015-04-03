@@ -19,7 +19,7 @@ func (client *Client) GetInstance(systemhref string) (systems []*types.System, e
 	req.SetBasicAuth("", client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := checkResp(client.Http.Do(req))
+	resp, err := retryCheckResp(&client.Http, req)
 	if err != nil {
 		return []*types.System{}, fmt.Errorf("problem getting response: %v", err)
 	}

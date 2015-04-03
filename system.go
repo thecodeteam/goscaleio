@@ -52,7 +52,7 @@ func (system *System) GetStatistics() (statistics *types.Statistics, err error) 
 	req.SetBasicAuth("", system.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := checkResp(system.client.Http.Do(req))
+	resp, err := retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
 	}
@@ -73,7 +73,6 @@ func (system *System) GetStatistics() (statistics *types.Statistics, err error) 
 
 func (system *System) CreateSnapshotConsistencyGroup(snapshotVolumesParam *types.SnapshotVolumesParam) (snapshotVolumesResp *types.SnapshotVolumesResp, err error) {
 	endpoint := system.client.SIOEndpoint
-	// endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/Statistics", system.System.ID)
 
 	link, err := GetLink(system.System.Links, "self")
 	if err != nil {
@@ -92,7 +91,7 @@ func (system *System) CreateSnapshotConsistencyGroup(snapshotVolumesParam *types
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := checkResp(system.client.Http.Do(req))
+	resp, err := retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return &types.SnapshotVolumesResp{}, fmt.Errorf("problem getting response: %v", err)
 	}

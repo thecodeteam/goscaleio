@@ -19,6 +19,9 @@ type SdcMappedVolume struct {
 	MdmID     string
 	VolumeID  string
 	SdcDevice string
+	// Mounted   bool
+	// MountPath bool
+	// Mapped    bool
 }
 
 type Volume struct {
@@ -60,7 +63,7 @@ func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid
 	req.SetBasicAuth("", storagePool.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := checkResp(storagePool.client.Http.Do(req))
+	resp, err := retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
 		return []*types.Volume{}, fmt.Errorf("problem getting response: %v", err)
 	}
@@ -105,7 +108,7 @@ func (storagePool *StoragePool) FindVolumeID(volumename string) (volumeID string
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := checkResp(storagePool.client.Http.Do(req))
+	resp, err := retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
 		return "", fmt.Errorf("problem getting response: %v", err)
 	}
@@ -157,7 +160,9 @@ func GetLocalVolumeMap() (mappedVolumes []*SdcMappedVolume, err error) {
 		if matched {
 			mdmVolumeID := strings.Replace(f.Name(), "emc-vol-", "", 1)
 			devPath, _ := filepath.EvalSymlinks(fmt.Sprintf("%s/%s", diskIDPath, f.Name()))
-			mappedVolumesMap[mdmVolumeID].SdcDevice = devPath
+			if _, ok := mappedVolumesMap[mdmVolumeID]; ok {
+				mappedVolumesMap[mdmVolumeID].SdcDevice = devPath
+			}
 		}
 	}
 
@@ -193,7 +198,7 @@ func (storagePool *StoragePool) CreateVolume(volume *types.VolumeParam) (volumeR
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := checkResp(storagePool.client.Http.Do(req))
+	resp, err := retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
 		return &types.VolumeResp{}, fmt.Errorf("problem getting response: %v", err)
 	}
@@ -220,7 +225,7 @@ func (volume *Volume) GetVTree() (vtree *types.VTree, err error) {
 	req.SetBasicAuth("", volume.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := checkResp(volume.client.Http.Do(req))
+	resp, err := retryCheckResp(&volume.client.Http, req)
 	if err != nil {
 		return &types.VTree{}, fmt.Errorf("problem getting response: %v", err)
 	}
@@ -260,7 +265,7 @@ func (volume *Volume) RemoveVolume(removeMode string) (err error) {
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := checkResp(volume.client.Http.Do(req))
+	resp, err := retryCheckResp(&volume.client.Http, req)
 	if err != nil {
 		return fmt.Errorf("problem getting response: %v", err)
 	}

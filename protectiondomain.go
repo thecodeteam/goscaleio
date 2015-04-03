@@ -38,7 +38,7 @@ func (system *System) GetProtectionDomain(protectiondomainhref string) (protecti
 	req.SetBasicAuth("", system.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := checkResp(system.client.Http.Do(req))
+	resp, err := retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return []*types.ProtectionDomain{}, fmt.Errorf("problem getting response: %v", err)
 	}
