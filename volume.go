@@ -42,6 +42,9 @@ func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid
 
 	if volumename != "" {
 		volumeid, err = storagePool.FindVolumeID(volumename)
+		if err != nil && err.Error() == "Not found" {
+			return nil, nil
+		}
 		if err != nil {
 			return []*types.Volume{}, fmt.Errorf("Error: problem finding volume: %s", err)
 		}
@@ -110,7 +113,7 @@ func (storagePool *StoragePool) FindVolumeID(volumename string) (volumeID string
 
 	resp, err := retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
-		return "", fmt.Errorf("problem getting response: %v", err)
+		return "", err
 	}
 	defer resp.Body.Close()
 

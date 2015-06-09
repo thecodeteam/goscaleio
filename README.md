@@ -54,7 +54,7 @@ Retrieving systems is the first step after authentication which enables you to w
 
 #### Find a System
 
-    system, err := client.FindSystem(systemid)
+    system, err := client.FindSystem(systemid,"","")
     if err != nil {
       log.Fatalf("err: problem getting instance %v", err)
     }

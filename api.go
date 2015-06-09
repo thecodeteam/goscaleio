@@ -141,7 +141,7 @@ func retryCheckResp(httpClient *http.Client, req *http.Request) (*http.Response,
 				return &http.Response{}, fmt.Errorf("re-authenticated and problem getting response: %+v %+v %+v", req, resp, err)
 			}
 		} else {
-			return &http.Response{}, fmt.Errorf("problem getting response: %v", errBody)
+			return &http.Response{}, errors.New(errBody.Message)
 		}
 	}
 

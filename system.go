@@ -21,20 +21,20 @@ func NewSystem(client *Client) *System {
 	}
 }
 
-func (client *Client) FindSystem(instanceID, href string) (*System, error) {
+func (client *Client) FindSystem(instanceID, name, href string) (*System, error) {
 	systems, err := client.GetInstance(href)
 	if err != nil {
 		return &System{}, fmt.Errorf("err: problem getting instances: %s", err)
 	}
 
 	for _, system := range systems {
-		if system.ID == instanceID || href != "" {
+		if system.ID == instanceID || system.Name == name || href != "" {
 			outSystem := NewSystem(client)
 			outSystem.System = system
 			return outSystem, nil
 		}
 	}
-	return &System{}, fmt.Errorf("err: systemid not found")
+	return &System{}, fmt.Errorf("err: systemid or systemname not found")
 }
 
 func (system *System) GetStatistics() (statistics *types.Statistics, err error) {
