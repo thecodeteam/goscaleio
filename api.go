@@ -136,9 +136,9 @@ func retryCheckResp(httpClient *http.Client, req *http.Request) (*http.Response,
 			resp.Body.Close()
 
 			req2.SetBasicAuth("", clientPersistentGlobal.client.Token)
-			resp, _, err = checkResp(httpClient.Do(req2))
+			resp, errBody, err = checkResp(httpClient.Do(req2))
 			if err != nil {
-				return &http.Response{}, fmt.Errorf("re-authenticated and problem getting response: %+v %+v %+v", req, resp, err)
+				return &http.Response{}, errors.New(errBody.Message)
 			}
 		} else {
 			return &http.Response{}, errors.New(errBody.Message)
