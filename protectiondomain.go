@@ -38,19 +38,19 @@ func (system *System) GetProtectionDomain(protectiondomainhref string) (protecti
 	req.SetBasicAuth("", system.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&system.client.Http, req)
+	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return []*types.ProtectionDomain{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if protectiondomainhref == "" {
-		if err = decodeBody(resp, &protectionDomains); err != nil {
+		if err = system.client.decodeBody(resp, &protectionDomains); err != nil {
 			return []*types.ProtectionDomain{}, fmt.Errorf("error decoding instances response: %s", err)
 		}
 	} else {
 		protectionDomain := &types.ProtectionDomain{}
-		if err = decodeBody(resp, &protectionDomain); err != nil {
+		if err = system.client.decodeBody(resp, &protectionDomain); err != nil {
 			return []*types.ProtectionDomain{}, fmt.Errorf("error decoding instances response: %s", err)
 		}
 		protectionDomains = append(protectionDomains, protectionDomain)

@@ -14,13 +14,13 @@ func (system *System) GetUser() (user []types.User, err error) {
 	req.SetBasicAuth("", system.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&system.client.Http, req)
+	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return []types.User{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &user); err != nil {
+	if err = system.client.decodeBody(resp, &user); err != nil {
 		return []types.User{}, fmt.Errorf("error decoding instances response: %s", err)
 	}
 

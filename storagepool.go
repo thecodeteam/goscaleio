@@ -37,19 +37,19 @@ func (protectionDomain *ProtectionDomain) GetStoragePool(storagepoolhref string)
 	req.SetBasicAuth("", protectionDomain.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&protectionDomain.client.Http, req)
+	resp, err := protectionDomain.client.retryCheckResp(&protectionDomain.client.Http, req)
 	if err != nil {
 		return []*types.StoragePool{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if storagepoolhref == "" {
-		if err = decodeBody(resp, &storagePools); err != nil {
+		if err = protectionDomain.client.decodeBody(resp, &storagePools); err != nil {
 			return []*types.StoragePool{}, fmt.Errorf("error decoding storage pool response: %s", err)
 		}
 	} else {
 		storagePool := &types.StoragePool{}
-		if err = decodeBody(resp, &storagePool); err != nil {
+		if err = protectionDomain.client.decodeBody(resp, &storagePool); err != nil {
 			return []*types.StoragePool{}, fmt.Errorf("error decoding instances response: %s", err)
 		}
 		storagePools = append(storagePools, storagePool)

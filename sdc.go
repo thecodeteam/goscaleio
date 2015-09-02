@@ -33,13 +33,13 @@ func (system *System) GetSdc() (sdcs []types.Sdc, err error) {
 	req.SetBasicAuth("", system.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&system.client.Http, req)
+	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return []types.Sdc{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &sdcs); err != nil {
+	if err = system.client.decodeBody(resp, &sdcs); err != nil {
 		return []types.Sdc{}, fmt.Errorf("error decoding instances response: %s", err)
 	}
 
@@ -84,13 +84,13 @@ func (sdc *Sdc) GetStatistics() (statistics *types.Statistics, err error) {
 	req.SetBasicAuth("", sdc.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&sdc.client.Http, req)
+	resp, err := sdc.client.retryCheckResp(&sdc.client.Http, req)
 	if err != nil {
 		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &statistics); err != nil {
+	if err = sdc.client.decodeBody(resp, &statistics); err != nil {
 		return &types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
 	}
 
@@ -110,13 +110,13 @@ func (sdc *Sdc) GetVolume() (volumes []*types.Volume, err error) {
 	req.SetBasicAuth("", sdc.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&sdc.client.Http, req)
+	resp, err := sdc.client.retryCheckResp(&sdc.client.Http, req)
 	if err != nil {
 		return []*types.Volume{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &volumes); err != nil {
+	if err = sdc.client.decodeBody(resp, &volumes); err != nil {
 		return []*types.Volume{}, fmt.Errorf("error decoding instances response: %s", err)
 	}
 
@@ -154,7 +154,7 @@ func (volume *Volume) MapVolumeSdc(mapVolumeSdcParam *types.MapVolumeSdcParam) (
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&volume.client.Http, req)
+	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {
 		return fmt.Errorf("problem getting response: %v", err)
 	}
@@ -178,7 +178,7 @@ func (volume *Volume) UnmapVolumeSdc(unmapVolumeSdcParam *types.UnmapVolumeSdcPa
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&volume.client.Http, req)
+	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {
 		return fmt.Errorf("problem getting response: %v", err)
 	}

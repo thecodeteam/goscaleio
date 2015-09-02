@@ -66,14 +66,14 @@ func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid
 	req.SetBasicAuth("", storagePool.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&storagePool.client.Http, req)
+	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
 		return []*types.Volume{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if volumehref == "" && volumeid == "" {
-		if err = decodeBody(resp, &volumes); err != nil {
+		if err = storagePool.client.decodeBody(resp, &volumes); err != nil {
 			return []*types.Volume{}, fmt.Errorf("error decoding storage pool response: %s", err)
 		}
 		var volumesNew []*types.Volume
@@ -85,7 +85,7 @@ func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid
 		volumes = volumesNew
 	} else {
 		volume := &types.Volume{}
-		if err = decodeBody(resp, &volume); err != nil {
+		if err = storagePool.client.decodeBody(resp, &volume); err != nil {
 			return []*types.Volume{}, fmt.Errorf("error decoding instances response: %s", err)
 		}
 		volumes = append(volumes, volume)
@@ -111,7 +111,7 @@ func (storagePool *StoragePool) FindVolumeID(volumename string) (volumeID string
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&storagePool.client.Http, req)
+	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
 		return "", err
 	}
@@ -201,13 +201,13 @@ func (storagePool *StoragePool) CreateVolume(volume *types.VolumeParam) (volumeR
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&storagePool.client.Http, req)
+	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
 		return &types.VolumeResp{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &volumeResp); err != nil {
+	if err = storagePool.client.decodeBody(resp, &volumeResp); err != nil {
 		return &types.VolumeResp{}, fmt.Errorf("error decoding volume creation response: %s", err)
 	}
 
@@ -228,13 +228,13 @@ func (volume *Volume) GetVTree() (vtree *types.VTree, err error) {
 	req.SetBasicAuth("", volume.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&volume.client.Http, req)
+	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {
 		return &types.VTree{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &vtree); err != nil {
+	if err = volume.client.decodeBody(resp, &vtree); err != nil {
 		return &types.VTree{}, fmt.Errorf("error decoding vtree response: %s", err)
 	}
 	return vtree, nil
@@ -268,7 +268,7 @@ func (volume *Volume) RemoveVolume(removeMode string) (err error) {
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&volume.client.Http, req)
+	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {
 		return fmt.Errorf("problem getting response: %v", err)
 	}

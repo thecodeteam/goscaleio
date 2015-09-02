@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	types "github.com/emccode/goscaleio/types/v1"
 )
 
@@ -23,6 +24,7 @@ type Client struct {
 	SIOEndpoint url.URL
 	Http        http.Client
 	Insecure    string
+	ShowBody    bool
 }
 
 type Cluster struct {
@@ -52,7 +54,7 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 	req.SetBasicAuth(configConnect.Username, configConnect.Password)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&client.Http, req)
+	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
 		return Cluster{}, fmt.Errorf("problem getting response: %v", err)
 	}
@@ -65,8 +67,9 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 
 	token := string(bs)
 
-	if os.Getenv("GOSCALEIO_SHOW_BODY") == "true" {
-		fmt.Printf("%+v\n", token)
+	if client.ShowBody {
+		log.WithField("body", token).Debug(
+			"printing authentication message body")
 	}
 
 	token = strings.TrimRight(token, `"`)
@@ -119,10 +122,10 @@ func DuplicateRequest(request *http.Request) (request1 *http.Request, request2 *
 	return
 }
 
-func retryCheckResp(httpClient *http.Client, req *http.Request) (*http.Response, error) {
+func (client *Client) retryCheckResp(httpClient *http.Client, req *http.Request) (*http.Response, error) {
 
 	req1, req2 := DuplicateRequest(req)
-	resp, errBody, err := checkResp(httpClient.Do(req1))
+	resp, errBody, err := client.checkResp(httpClient.Do(req1))
 	if errBody == nil && err != nil {
 		return &http.Response{}, err
 	} else if errBody != nil && err != nil {
@@ -136,7 +139,7 @@ func retryCheckResp(httpClient *http.Client, req *http.Request) (*http.Response,
 			resp.Body.Close()
 
 			req2.SetBasicAuth("", clientPersistentGlobal.client.Token)
-			resp, errBody, err = checkResp(httpClient.Do(req2))
+			resp, errBody, err = client.checkResp(httpClient.Do(req2))
 			if err != nil {
 				return &http.Response{}, errors.New(errBody.Message)
 			}
@@ -148,7 +151,7 @@ func retryCheckResp(httpClient *http.Client, req *http.Request) (*http.Response,
 	return resp, nil
 }
 
-func checkResp(resp *http.Response, err error) (*http.Response, *types.Error, error) {
+func (client *Client) checkResp(resp *http.Response, err error) (*http.Response, *types.Error, error) {
 	if err != nil {
 		return resp, &types.Error{}, err
 	}
@@ -159,7 +162,7 @@ func checkResp(resp *http.Response, err error) (*http.Response, *types.Error, er
 		return resp, &types.Error{}, nil
 	// Invalid request, parse the XML error returned and return it.
 	case i == 400 || i == 401 || i == 403 || i == 404 || i == 405 || i == 406 || i == 409 || i == 415 || i == 500 || i == 503 || i == 504:
-		errBody, err := parseErr(resp)
+		errBody, err := client.parseErr(resp)
 		return resp, errBody, err
 	// Unhandled response.
 	default:
@@ -167,17 +170,18 @@ func checkResp(resp *http.Response, err error) (*http.Response, *types.Error, er
 	}
 }
 
-func decodeBody(resp *http.Response, out interface{}) error {
+func (client *Client) decodeBody(resp *http.Response, out interface{}) error {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	if os.Getenv("GOSCALEIO_SHOW_BODY") == "true" {
+	if client.ShowBody {
 		var prettyJSON bytes.Buffer
-		_ = json.Indent(&prettyJSON, body, "", "    ")
-		fmt.Printf("%+v\n", prettyJSON.String())
+		_ = json.Indent(&prettyJSON, body, "", "  ")
+		log.WithField("body", prettyJSON.String()).Debug(
+			"print decoded body")
 	}
 
 	if err = json.Unmarshal(body, &out); err != nil {
@@ -187,12 +191,12 @@ func decodeBody(resp *http.Response, out interface{}) error {
 	return nil
 }
 
-func parseErr(resp *http.Response) (*types.Error, error) {
+func (client *Client) parseErr(resp *http.Response) (*types.Error, error) {
 
 	errBody := new(types.Error)
 
 	// if there was an error decoding the body, just return that
-	if err := decodeBody(resp, errBody); err != nil {
+	if err := client.decodeBody(resp, errBody); err != nil {
 		return &types.Error{}, fmt.Errorf("error parsing error body for non-200 request: %s", err)
 	}
 
@@ -201,11 +205,10 @@ func parseErr(resp *http.Response) (*types.Error, error) {
 
 func (c *Client) NewRequest(params map[string]string, method string, u url.URL, body io.Reader) *http.Request {
 
-	debug := os.Getenv("SCALEIO_SHOW_BODY")
-	if debug == "true" && body != nil {
+	if log.GetLevel() == log.DebugLevel && c.ShowBody && body != nil {
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(body)
-		fmt.Printf("\n\nDEBUG: \n%s\n\n", buf.String())
+		log.WithField("body", buf.String()).Debug("print new request body")
 	}
 
 	p := url.Values{}
@@ -223,24 +226,35 @@ func (c *Client) NewRequest(params map[string]string, method string, u url.URL, 
 }
 
 func NewClient() (client *Client, err error) {
+	return NewClientWithArgs(
+		os.Getenv("GOSCALEIO_ENDPOINT"),
+		os.Getenv("GOSCALEIO_INSECURE") == "true",
+		os.Getenv("GOSCALEIO_USECERTS") == "true")
+}
+
+func NewClientWithArgs(
+	endpoint string,
+	insecure,
+	useCerts bool) (client *Client, err error) {
+
+	fields := map[string]interface{}{
+		"endpoint": endpoint,
+		"insecure": insecure,
+		"useCerts": useCerts,
+	}
 
 	var uri *url.URL
 
-	if os.Getenv("GOSCALEIO_ENDPOINT") != "" {
-		uri, err = url.ParseRequestURI(os.Getenv("GOSCALEIO_ENDPOINT"))
+	if endpoint != "" {
+		uri, err = url.ParseRequestURI(endpoint)
 		if err != nil {
-			return &Client{}, fmt.Errorf("cannot parse endpoint coming from VCLOUDAIR_ENDPOINT")
+			return &Client{},
+				withFieldsE(fields, "error parsing endpoint", err)
 		}
 	} else {
-		return &Client{}, errors.New("missing GOSCALEIO_ENDPOINT")
+		return &Client{},
+			withFields(fields, "endpoint is required")
 
-	}
-
-	var insecureSkipVerify bool
-	if os.Getenv("GOSCALEIO_INSECURE") == "true" {
-		insecureSkipVerify = true
-	} else {
-		insecureSkipVerify = false
 	}
 
 	client = &Client{
@@ -249,13 +263,13 @@ func NewClient() (client *Client, err error) {
 			Transport: &http.Transport{
 				TLSHandshakeTimeout: 120 * time.Second,
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: insecureSkipVerify,
+					InsecureSkipVerify: insecure,
 				},
 			},
 		},
 	}
 
-	if os.Getenv("GOSCALEIO_USECERTS") == "true" {
+	if useCerts {
 		pool := x509.NewCertPool()
 		pool.AppendCertsFromPEM(pemCerts)
 
@@ -263,7 +277,7 @@ func NewClient() (client *Client, err error) {
 			TLSHandshakeTimeout: 120 * time.Second,
 			TLSClientConfig: &tls.Config{
 				RootCAs:            pool,
-				InsecureSkipVerify: insecureSkipVerify,
+				InsecureSkipVerify: insecure,
 			},
 		}
 	}
@@ -279,4 +293,39 @@ func GetLink(links []*types.Link, rel string) (*types.Link, error) {
 	}
 
 	return &types.Link{}, errors.New("Couldn't find link")
+}
+
+func withFields(fields map[string]interface{}, message string) error {
+	return withFieldsE(fields, message, nil)
+}
+
+func withFieldsE(
+	fields map[string]interface{}, message string, inner error) error {
+
+	if fields == nil {
+		fields = make(map[string]interface{})
+	}
+
+	if inner != nil {
+		fields["inner"] = inner
+	}
+
+	x := 0
+	l := len(fields)
+
+	var b bytes.Buffer
+	for k, v := range fields {
+		if x < l-1 {
+			b.WriteString(fmt.Sprintf("%s=%v,", k, v))
+		} else {
+			b.WriteString(fmt.Sprintf("%s=%v", k, v))
+		}
+		x = x + 1
+	}
+
+	return newf("%s %s", message, b.String())
+}
+
+func newf(format string, a ...interface{}) error {
+	return errors.New(fmt.Sprintf(format, a))
 }
