@@ -52,13 +52,13 @@ func (system *System) GetStatistics() (statistics *types.Statistics, err error) 
 	req.SetBasicAuth("", system.client.Token)
 	req.Header.Add("Accept", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&system.client.Http, req)
+	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &statistics); err != nil {
+	if err = system.client.decodeBody(resp, &statistics); err != nil {
 		return &types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
 	}
 
@@ -91,13 +91,13 @@ func (system *System) CreateSnapshotConsistencyGroup(snapshotVolumesParam *types
 	req.Header.Add("Accept", "application/json;version=1.0")
 	req.Header.Add("Content-Type", "application/json;version=1.0")
 
-	resp, err := retryCheckResp(&system.client.Http, req)
+	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
 		return &types.SnapshotVolumesResp{}, fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if err = decodeBody(resp, &snapshotVolumesResp); err != nil {
+	if err = system.client.decodeBody(resp, &snapshotVolumesResp); err != nil {
 		return &types.SnapshotVolumesResp{}, fmt.Errorf("error decoding snapshotvolumes response: %s", err)
 	}
 
