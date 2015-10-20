@@ -36,7 +36,7 @@ func NewVolume(client *Client) *Volume {
 	}
 }
 
-func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid, volumename string) (volumes []*types.Volume, err error) {
+func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid, volumename string, getSnapshots bool) (volumes []*types.Volume, err error) {
 
 	endpoint := storagePool.client.SIOEndpoint
 
@@ -78,7 +78,7 @@ func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid
 		}
 		var volumesNew []*types.Volume
 		for _, volume := range volumes {
-			if volume.AncestorVolumeID == ancestorvolumeid {
+			if (!getSnapshots && volume.AncestorVolumeID == ancestorvolumeid) || (getSnapshots && volume.AncestorVolumeID != "") {
 				volumesNew = append(volumesNew, volume)
 			}
 		}
