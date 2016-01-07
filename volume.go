@@ -138,7 +138,7 @@ func GetLocalVolumeMap() (mappedVolumes []*SdcMappedVolume, err error) {
 
 	mappedVolumesMap := make(map[string]*SdcMappedVolume)
 
-	out, err := exec.Command("/bin/emc/scaleio/drv_cfg", "--query_vols").Output()
+	out, err := exec.Command("/opt/emc/scaleio/sdc/bin/drv_cfg", "--query_vols").Output()
 	if err != nil {
 		return []*SdcMappedVolume{}, fmt.Errorf("Error querying volumes: ", err)
 	}
