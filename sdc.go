@@ -129,7 +129,7 @@ func GetSdcLocalGUID() (sdcGUID string, err error) {
 	// /bin/emc/scaleio/drv_cfg --query_guid
 	// sdcKernelGuid := "271bad82-08ee-44f2-a2b1-7e2787c27be1"
 
-	out, err := exec.Command("/bin/emc/scaleio/drv_cfg", "--query_guid").Output()
+	out, err := exec.Command("/opt/emc/scaleio/sdc/bin/drv_cfg", "--query_guid").Output()
 	if err != nil {
 		return "", fmt.Errorf("Error querying volumes: ", err)
 	}
