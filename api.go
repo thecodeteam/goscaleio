@@ -129,7 +129,7 @@ func (client *Client) retryCheckResp(httpClient *http.Client, req *http.Request)
 	if errBody == nil && err != nil {
 		return &http.Response{}, err
 	} else if errBody != nil && err != nil {
-		if resp.StatusCode == 401 && errBody.MajorErrorCode == 0 {
+		if resp != nil && resp.StatusCode == 401 && errBody.MajorErrorCode == 0 {
 			_, err := clientPersistentGlobal.client.Authenticate(clientPersistentGlobal.configConnect)
 			if err != nil {
 				return nil, fmt.Errorf("Error re-authenticating: %s", err)
