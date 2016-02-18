@@ -20,11 +20,12 @@ import (
 )
 
 type Client struct {
-	Token       string
-	SIOEndpoint url.URL
-	Http        http.Client
-	Insecure    string
-	ShowBody    bool
+	Token         string
+	SIOEndpoint   url.URL
+	Http          http.Client
+	Insecure      string
+	ShowBody      bool
+	configConnect *ConfigConnect
 }
 
 type Cluster struct {
@@ -41,12 +42,8 @@ type ClientPersistent struct {
 	client        *Client
 }
 
-var clientPersistentGlobal ClientPersistent
-
 func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error) {
-	clientPersistentGlobal.configConnect = configConnect
-	clientPersistentGlobal.client = client
-
+	client.configConnect = configConnect
 	endpoint := client.SIOEndpoint
 	endpoint.Path += "/login"
 
@@ -134,7 +131,7 @@ func (client *Client) retryCheckResp(httpClient *http.Client, req *http.Request)
 		}
 
 		if resp.StatusCode == 401 && errBody.MajorErrorCode == 0 {
-			_, err := clientPersistentGlobal.client.Authenticate(clientPersistentGlobal.configConnect)
+			_, err := client.Authenticate(client.configConnect)
 			if err != nil {
 				return nil, fmt.Errorf("Error re-authenticating: %s", err)
 			}
@@ -142,7 +139,7 @@ func (client *Client) retryCheckResp(httpClient *http.Client, req *http.Request)
 			ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
 
-			req2.SetBasicAuth("", clientPersistentGlobal.client.Token)
+			req2.SetBasicAuth("", client.Token)
 			resp, errBody, err = client.checkResp(httpClient.Do(req2))
 			if err != nil {
 				return &http.Response{}, errors.New(errBody.Message)
