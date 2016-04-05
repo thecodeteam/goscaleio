@@ -38,7 +38,7 @@ func (s *S) SetUpSuite(c *C) {
 		},
 	)
 
-	_, err = client.Authenticate(&ConfigConnect{Username: "username", Password: "password", Endpoint: "http://localhost:4444/api"})
+	_, err = client.Authenticate(&ConfigConnect{Username: "username", Password: "password", Endpoint: "http://localhost:4444/api", Version: "2.0"})
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +69,7 @@ func TestClient_Authenticate(t *testing.T) {
 		},
 	)
 
-	_, err = client.Authenticate(&ConfigConnect{Username: "username", Password: "password", Endpoint: ""})
+	_, err = client.Authenticate(&ConfigConnect{Username: "username", Password: "password", Endpoint: "", Version: "2.0"})
 	_ = testServer.WaitRequests(1)
 	testServer.Flush()
 	if err != nil {
