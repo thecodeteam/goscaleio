@@ -25,6 +25,7 @@ type Client struct {
 	Http          http.Client
 	Insecure      string
 	ShowBody      bool
+	Version       string
 	configConnect *ConfigConnect
 }
 
@@ -49,7 +50,7 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth(configConnect.Username, configConnect.Password)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+client.Version)
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
@@ -229,12 +230,13 @@ func (c *Client) NewRequest(params map[string]string, method string, u url.URL, 
 func NewClient() (client *Client, err error) {
 	return NewClientWithArgs(
 		os.Getenv("GOSCALEIO_ENDPOINT"),
+		os.Getenv("GOSCALEIO_VERSION"),
 		os.Getenv("GOSCALEIO_INSECURE") == "true",
 		os.Getenv("GOSCALEIO_USECERTS") == "true")
 }
 
 func NewClientWithArgs(
-	endpoint string,
+	endpoint, version string,
 	insecure,
 	useCerts bool) (client *Client, err error) {
 
@@ -242,6 +244,7 @@ func NewClientWithArgs(
 		"endpoint": endpoint,
 		"insecure": insecure,
 		"useCerts": useCerts,
+		"version":  version,
 	}
 
 	var uri *url.URL
@@ -255,7 +258,11 @@ func NewClientWithArgs(
 	} else {
 		return &Client{},
 			withFields(fields, "endpoint is required")
+	}
 
+	if version == "" {
+		return &Client{},
+			withFields(fields, "version is required")
 	}
 
 	client = &Client{
@@ -269,6 +276,8 @@ func NewClientWithArgs(
 			},
 		},
 	}
+
+	client.Version = strings.Split(version, ".")[0] + ".0"
 
 	if useCerts {
 		pool := x509.NewCertPool()
