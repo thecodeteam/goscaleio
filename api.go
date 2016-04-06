@@ -25,7 +25,6 @@ type Client struct {
 	Http        http.Client
 	Insecure    string
 	ShowBody    bool
-
 	configConnect *ConfigConnect
 }
 
@@ -43,6 +42,37 @@ type ClientPersistent struct {
 	configConnect *ConfigConnect
 	client        *Client
 }
+func (client *Client) setVersion() error {
+	endpoint := client.SIOEndpoint
+	endpoint.Path = "/api/version"
+
+	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
+	req.SetBasicAuth("", client.Token)
+
+	resp, err := client.retryCheckResp(&client.Http, req)
+	if err != nil {
+		return fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return errors.New("error reading body")
+	}
+
+	version := string(bs)
+
+	if client.ShowBody {
+		log.WithField("body", version).Debug(
+			"printing version message body")
+	}
+
+	version = strings.TrimRight(version, `"`)
+	version = strings.TrimLeft(version, `"`)
+	client.configConnect.Version = strings.Split(version, ".")[0] + ".0"
+
+	return nil
+}
 
 func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error) {
 	client.configConnect = configConnect
@@ -51,7 +81,6 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth(configConnect.Username, configConnect.Password)
-	req.Header.Add("Accept", "application/json;version="+configConnect.Version)
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
@@ -74,7 +103,10 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 	token = strings.TrimRight(token, `"`)
 	token = strings.TrimLeft(token, `"`)
 	client.Token = token
-
+	err = client.setVersion()
+	if err != nil {
+		return Cluster{}, errors.New("error getting version of ScaleIO")
+	}
 	return Cluster{}, nil
 }
 
