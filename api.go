@@ -42,7 +42,13 @@ type ClientPersistent struct {
 	configConnect *ConfigConnect
 	client        *Client
 }
-func (client *Client) setVersion() error {
+
+func (client *Client) updateVersion() error {
+
+	if client.configConnect.Version != "" {
+		return nil
+	}
+
 	endpoint := client.SIOEndpoint
 	endpoint.Path = "/api/version"
 
@@ -75,7 +81,10 @@ func (client *Client) setVersion() error {
 }
 
 func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error) {
+
+	configConnect.Version = client.configConnect.Version
 	client.configConnect = configConnect
+
 	endpoint := client.SIOEndpoint
 	endpoint.Path += "/login"
 
@@ -103,7 +112,7 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 	token = strings.TrimRight(token, `"`)
 	token = strings.TrimLeft(token, `"`)
 	client.Token = token
-	err = client.setVersion()
+	err = client.updateVersion()
 	if err != nil {
 		return Cluster{}, errors.New("error getting version of ScaleIO")
 	}
@@ -263,12 +272,14 @@ func (c *Client) NewRequest(params map[string]string, method string, u url.URL, 
 func NewClient() (client *Client, err error) {
 	return NewClientWithArgs(
 		os.Getenv("GOSCALEIO_ENDPOINT"),
+		os.Getenv("GOSCALEIO_VERSION"),
 		os.Getenv("GOSCALEIO_INSECURE") == "true",
 		os.Getenv("GOSCALEIO_USECERTS") == "true")
 }
 
 func NewClientWithArgs(
 	endpoint string,
+	version string,
 	insecure,
 	useCerts bool) (client *Client, err error) {
 
@@ -276,6 +287,7 @@ func NewClientWithArgs(
 		"endpoint": endpoint,
 		"insecure": insecure,
 		"useCerts": useCerts,
+		"version":  version,
 	}
 
 	var uri *url.URL
@@ -314,6 +326,10 @@ func NewClientWithArgs(
 				InsecureSkipVerify: insecure,
 			},
 		}
+	}
+
+	client.configConnect = &ConfigConnect{
+		Version: version,
 	}
 
 	return client, nil
