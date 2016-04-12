@@ -43,12 +43,7 @@ type ClientPersistent struct {
 	client        *Client
 }
 
-func (client *Client) updateVersion() error {
-
-	if client.configConnect.Version != "" {
-		return nil
-	}
-
+func (client *Client) getVersion() (string, error) {
 	endpoint := client.SIOEndpoint
 	endpoint.Path = "/api/version"
 
@@ -57,13 +52,13 @@ func (client *Client) updateVersion() error {
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
-		return fmt.Errorf("problem getting response: %v", err)
+		return "", fmt.Errorf("problem getting response: %v", err)
 	}
 	defer resp.Body.Close()
 
 	bs, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return errors.New("error reading body")
+		return "", errors.New("error reading body")
 	}
 
 	version := string(bs)
@@ -75,7 +70,17 @@ func (client *Client) updateVersion() error {
 
 	version = strings.TrimRight(version, `"`)
 	version = strings.TrimLeft(version, `"`)
-	client.configConnect.Version = strings.Split(version, ".")[0] + ".0"
+
+	return version, nil
+}
+
+func (client *Client) updateVersion() error {
+
+	version, err := client.getVersion()
+	if err != nil {
+		return err
+	}
+	client.configConnect.Version = version
 
 	return nil
 }
@@ -112,10 +117,14 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 	token = strings.TrimRight(token, `"`)
 	token = strings.TrimLeft(token, `"`)
 	client.Token = token
-	err = client.updateVersion()
-	if err != nil {
-		return Cluster{}, errors.New("error getting version of ScaleIO")
+
+	if client.configConnect.Version == "" {
+		err = client.updateVersion()
+		if err != nil {
+			return Cluster{}, errors.New("error getting version of ScaleIO")
+		}
 	}
+
 	return Cluster{}, nil
 }
 
