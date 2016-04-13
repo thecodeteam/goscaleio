@@ -20,11 +20,11 @@ import (
 )
 
 type Client struct {
-	Token         string
-	SIOEndpoint   url.URL
-	Http          http.Client
-	Insecure      string
-	ShowBody      bool
+	Token       string
+	SIOEndpoint url.URL
+	Http        http.Client
+	Insecure    string
+	ShowBody    bool
 	configConnect *ConfigConnect
 }
 
@@ -33,6 +33,7 @@ type Cluster struct {
 
 type ConfigConnect struct {
 	Endpoint string
+	Version  string
 	Username string
 	Password string
 }
@@ -42,14 +43,58 @@ type ClientPersistent struct {
 	client        *Client
 }
 
+func (client *Client) getVersion() (string, error) {
+	endpoint := client.SIOEndpoint
+	endpoint.Path = "/api/version"
+
+	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
+	req.SetBasicAuth("", client.Token)
+
+	resp, err := client.retryCheckResp(&client.Http, req)
+	if err != nil {
+		return "", fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.New("error reading body")
+	}
+
+	version := string(bs)
+
+	if client.ShowBody {
+		log.WithField("body", version).Debug(
+			"printing version message body")
+	}
+
+	version = strings.TrimRight(version, `"`)
+	version = strings.TrimLeft(version, `"`)
+
+	return version, nil
+}
+
+func (client *Client) updateVersion() error {
+
+	version, err := client.getVersion()
+	if err != nil {
+		return err
+	}
+	client.configConnect.Version = version
+
+	return nil
+}
+
 func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error) {
+
+	configConnect.Version = client.configConnect.Version
 	client.configConnect = configConnect
+
 	endpoint := client.SIOEndpoint
 	endpoint.Path += "/login"
 
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth(configConnect.Username, configConnect.Password)
-	req.Header.Add("Accept", "application/json;version=1.0")
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
@@ -72,6 +117,13 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 	token = strings.TrimRight(token, `"`)
 	token = strings.TrimLeft(token, `"`)
 	client.Token = token
+
+	if client.configConnect.Version == "" {
+		err = client.updateVersion()
+		if err != nil {
+			return Cluster{}, errors.New("error getting version of ScaleIO")
+		}
+	}
 
 	return Cluster{}, nil
 }
@@ -229,12 +281,14 @@ func (c *Client) NewRequest(params map[string]string, method string, u url.URL, 
 func NewClient() (client *Client, err error) {
 	return NewClientWithArgs(
 		os.Getenv("GOSCALEIO_ENDPOINT"),
+		os.Getenv("GOSCALEIO_VERSION"),
 		os.Getenv("GOSCALEIO_INSECURE") == "true",
 		os.Getenv("GOSCALEIO_USECERTS") == "true")
 }
 
 func NewClientWithArgs(
 	endpoint string,
+	version string,
 	insecure,
 	useCerts bool) (client *Client, err error) {
 
@@ -242,6 +296,7 @@ func NewClientWithArgs(
 		"endpoint": endpoint,
 		"insecure": insecure,
 		"useCerts": useCerts,
+		"version":  version,
 	}
 
 	var uri *url.URL
@@ -255,7 +310,6 @@ func NewClientWithArgs(
 	} else {
 		return &Client{},
 			withFields(fields, "endpoint is required")
-
 	}
 
 	client = &Client{
@@ -281,6 +335,10 @@ func NewClientWithArgs(
 				InsecureSkipVerify: insecure,
 			},
 		}
+	}
+
+	client.configConnect = &ConfigConnect{
+		Version: version,
 	}
 
 	return client, nil

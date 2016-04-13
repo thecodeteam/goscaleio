@@ -36,7 +36,7 @@ func (system *System) GetProtectionDomain(protectiondomainhref string) (protecti
 
 	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
 
 	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {

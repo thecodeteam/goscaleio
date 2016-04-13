@@ -64,7 +64,7 @@ func (storagePool *StoragePool) GetVolume(volumehref, volumeid, ancestorvolumeid
 
 	req := storagePool.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", storagePool.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+storagePool.client.configConnect.Version)
 
 	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
@@ -108,8 +108,8 @@ func (storagePool *StoragePool) FindVolumeID(volumename string) (volumeID string
 
 	req := storagePool.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 	req.SetBasicAuth("", storagePool.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+storagePool.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+storagePool.client.configConnect.Version)
 
 	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
@@ -198,8 +198,8 @@ func (storagePool *StoragePool) CreateVolume(volume *types.VolumeParam) (volumeR
 
 	req := storagePool.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 	req.SetBasicAuth("", storagePool.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+storagePool.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+storagePool.client.configConnect.Version)
 
 	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
 	if err != nil {
@@ -226,7 +226,7 @@ func (volume *Volume) GetVTree() (vtree *types.VTree, err error) {
 
 	req := volume.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", volume.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
 
 	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {
@@ -265,8 +265,8 @@ func (volume *Volume) RemoveVolume(removeMode string) (err error) {
 	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 
 	req.SetBasicAuth("", volume.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
 
 	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {

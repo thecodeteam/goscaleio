@@ -22,7 +22,7 @@ func (client *Client) GetInstance(systemhref string) (systems []*types.System, e
 
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
@@ -74,7 +74,7 @@ func (client *Client) GetVolume(volumehref, volumeid, ancestorvolumeid, volumena
 
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
@@ -118,8 +118,8 @@ func (client *Client) FindVolumeID(volumename string) (volumeID string, err erro
 
 	req := client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+client.configConnect.Version)
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
@@ -161,8 +161,8 @@ func (client *Client) CreateVolume(volume *types.VolumeParam, storagePoolName st
 
 	req := client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+client.configConnect.Version)
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
@@ -189,7 +189,7 @@ func (client *Client) GetStoragePool(storagepoolhref string) (storagePools []*ty
 
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
 
 	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {

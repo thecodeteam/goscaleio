@@ -35,7 +35,7 @@ func (protectionDomain *ProtectionDomain) GetStoragePool(storagepoolhref string)
 
 	req := protectionDomain.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", protectionDomain.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+protectionDomain.client.configConnect.Version)
 
 	resp, err := protectionDomain.client.retryCheckResp(&protectionDomain.client.Http, req)
 	if err != nil {

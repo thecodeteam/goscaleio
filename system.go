@@ -50,7 +50,7 @@ func (system *System) GetStatistics() (statistics *types.Statistics, err error) 
 
 	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
 
 	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
@@ -88,8 +88,8 @@ func (system *System) CreateSnapshotConsistencyGroup(snapshotVolumesParam *types
 
 	req := system.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+system.client.configConnect.Version)
 
 	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {

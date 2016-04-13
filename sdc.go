@@ -31,7 +31,7 @@ func (system *System) GetSdc() (sdcs []types.Sdc, err error) {
 
 	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
 
 	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
@@ -82,7 +82,7 @@ func (sdc *Sdc) GetStatistics() (statistics *types.Statistics, err error) {
 
 	req := sdc.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", sdc.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+sdc.client.configConnect.Version)
 
 	resp, err := sdc.client.retryCheckResp(&sdc.client.Http, req)
 	if err != nil {
@@ -108,7 +108,7 @@ func (sdc *Sdc) GetVolume() (volumes []*types.Volume, err error) {
 
 	req := sdc.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth("", sdc.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+sdc.client.configConnect.Version)
 
 	resp, err := sdc.client.retryCheckResp(&sdc.client.Http, req)
 	if err != nil {
@@ -151,8 +151,8 @@ func (volume *Volume) MapVolumeSdc(mapVolumeSdcParam *types.MapVolumeSdcParam) (
 
 	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 	req.SetBasicAuth("", volume.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
 
 	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {
@@ -175,8 +175,8 @@ func (volume *Volume) UnmapVolumeSdc(unmapVolumeSdcParam *types.UnmapVolumeSdcPa
 
 	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
 	req.SetBasicAuth("", volume.client.Token)
-	req.Header.Add("Accept", "application/json;version=1.0")
-	req.Header.Add("Content-Type", "application/json;version=1.0")
+	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
 
 	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
 	if err != nil {
