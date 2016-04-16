@@ -20,11 +20,11 @@ import (
 )
 
 type Client struct {
-	Token       string
-	SIOEndpoint url.URL
-	Http        http.Client
-	Insecure    string
-	ShowBody    bool
+	Token         string
+	SIOEndpoint   url.URL
+	Http          http.Client
+	Insecure      string
+	ShowBody      bool
 	configConnect *ConfigConnect
 }
 
@@ -96,11 +96,17 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
 	req.SetBasicAuth(configConnect.Username, configConnect.Password)
 
-	resp, err := client.retryCheckResp(&client.Http, req)
-	if err != nil {
-		return Cluster{}, fmt.Errorf("problem getting response: %v", err)
-	}
+	httpClient := &client.Http
+	resp, errBody, err := client.checkResp(httpClient.Do(req))
 	defer resp.Body.Close()
+	if errBody == nil && err != nil {
+		return Cluster{}, err
+	} else if errBody != nil && err != nil {
+		if resp == nil {
+			return Cluster{}, errors.New("Problem getting response from endpoint")
+		}
+		return Cluster{}, errors.New(errBody.Message)
+	}
 
 	bs, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
