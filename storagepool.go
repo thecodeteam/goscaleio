@@ -72,3 +72,29 @@ func (protectionDomain *ProtectionDomain) FindStoragePool(id, name, href string)
 	return &types.StoragePool{}, errors.New("Couldn't find protection domain")
 
 }
+
+func (storagePool *StoragePool) GetStatistics() (statistics *types.Statistics, err error) {
+	link, err := GetLink(storagePool.StoragePool.Links, "/api/StoragePool/relationship/Statistics")
+	if err != nil {
+		return &types.Statistics{}, errors.New("Error: problem finding link")
+	}
+
+	endpoint := storagePool.client.SIOEndpoint
+	endpoint.Path = link.HREF
+
+	req := storagePool.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
+	req.SetBasicAuth("", storagePool.client.Token)
+	req.Header.Add("Accept", "application/json;version="+storagePool.client.configConnect.Version)
+
+	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
+	if err != nil {
+		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if err = storagePool.client.decodeBody(resp, &statistics); err != nil {
+		return &types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
+	}
+
+	return statistics, nil
+}
