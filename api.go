@@ -98,7 +98,6 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 
 	httpClient := &client.Http
 	resp, errBody, err := client.checkResp(httpClient.Do(req))
-	defer resp.Body.Close()
 	if errBody == nil && err != nil {
 		return Cluster{}, err
 	} else if errBody != nil && err != nil {
@@ -107,6 +106,7 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 		}
 		return Cluster{}, errors.New(errBody.Message)
 	}
+	defer resp.Body.Close()
 
 	bs, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
