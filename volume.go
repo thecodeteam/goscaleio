@@ -130,6 +130,7 @@ func (storagePool *StoragePool) FindVolumeID(volumename string) (volumeID string
 	return volumeID, nil
 }
 
+// Deprecated, not a gateway API function
 func GetLocalVolumeMap() (mappedVolumes []*SdcMappedVolume, err error) {
 
 	// get sdc kernel guid
