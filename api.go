@@ -2,13 +2,13 @@ package goscaleio
 
 import (
 	"bytes"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +17,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	sioTLS "github.com/emccode/goscaleio/tls"
 	types "github.com/emccode/goscaleio/types/v1"
 )
 
@@ -323,29 +324,30 @@ func NewClientWithArgs(
 			withFields(fields, "endpoint is required")
 	}
 
+	var certPool *x509.CertPool
+	if useCerts {
+		certPool = x509.NewCertPool()
+		certPool.AppendCertsFromPEM(pemCerts)
+	}
+
+	dialTLS := func(network, addr string) (net.Conn, error) {
+		return sioTLS.Dial(
+			network,
+			addr,
+			&sioTLS.Config{
+				InsecureSkipVerify: true,
+				RootCAs:            certPool,
+			})
+	}
+
 	client = &Client{
 		SIOEndpoint: *uri,
 		Http: http.Client{
 			Transport: &http.Transport{
+				DialTLS:             dialTLS,
 				TLSHandshakeTimeout: 120 * time.Second,
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: insecure,
-				},
 			},
 		},
-	}
-
-	if useCerts {
-		pool := x509.NewCertPool()
-		pool.AppendCertsFromPEM(pemCerts)
-
-		client.Http.Transport = &http.Transport{
-			TLSHandshakeTimeout: 120 * time.Second,
-			TLSClientConfig: &tls.Config{
-				RootCAs:            pool,
-				InsecureSkipVerify: insecure,
-			},
-		}
 	}
 
 	client.configConnect = &ConfigConnect{
