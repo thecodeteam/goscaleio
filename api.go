@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -71,6 +72,10 @@ func (client *Client) getVersion() (string, error) {
 	version = strings.TrimRight(version, `"`)
 	version = strings.TrimLeft(version, `"`)
 
+	versionRX := regexp.MustCompile(`^(\d+?\.\d+?).*$`)
+	if m := versionRX.FindStringSubmatch(version); len(m) > 0 {
+		return m[1], nil
+	}
 	return version, nil
 }
 
