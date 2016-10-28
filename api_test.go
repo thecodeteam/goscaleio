@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/emccode/goscaleio/testutil"
+	"github.com/codedellemc/goscaleio/testutil"
 	. "gopkg.in/check.v1"
 )
 

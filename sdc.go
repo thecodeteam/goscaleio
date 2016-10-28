@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	types "github.com/emccode/goscaleio/types/v1"
+	types "github.com/codedellemc/goscaleio/types/v1"
 )
 
 type Sdc struct {
