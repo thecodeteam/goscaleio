@@ -17,8 +17,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	sioTLS "github.com/emccode/goscaleio/tls"
-	types "github.com/emccode/goscaleio/types/v1"
+	sioTLS "github.com/codedellemc/goscaleio/tls"
+	types "github.com/codedellemc/goscaleio/types/v1"
 )
 
 type Client struct {
