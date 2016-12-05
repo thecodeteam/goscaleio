@@ -160,6 +160,14 @@ type ProtectionDomain struct {
 	Links                             []*Link `json:"links"`
 }
 
+type ProtectionDomainParam struct {
+	Name string `json:"name"`
+}
+
+type ProtectionDomainResp struct {
+	ID string `json:"id"`
+}
+
 type Sdc struct {
 	SystemID           string  `json:"systemId"`
 	SdcApproved        bool    `json:"sdcApproved"`
@@ -170,6 +178,88 @@ type Sdc struct {
 	Name               string  `json:"name"`
 	ID                 string  `json:"id"`
 	Links              []*Link `json:"links"`
+}
+
+type SdsIp struct {
+	IP   string `json:"ip"`
+	Role string `json:"role"`
+}
+
+type SdsIpList struct {
+	SdsIP SdsIp `json:"SdsIp"`
+}
+
+type Sds struct {
+	ID                           string       `json:"id"`
+	Name                         string       `json:"name,omitempty"`
+	ProtectionDomainID           string       `json:"protectionDomainId"`
+	IPList                       []*SdsIpList `json:"ipList"`
+	Port                         int          `json:"port,omitempty"`
+	SdsState                     string       `json:"sdsState"`
+	MembershipState              string       `json:"membershipState"`
+	MdmConnectionState           string       `json:"mdmConnectionState"`
+	DrlMode                      string       `json:"drlMode,omitempty"`
+	RmcacheEnabled               bool         `json:"rmcacheEnabled,omitempty"`
+	RmcacheSizeInKb              int          `json:"rmcacheSizeInKb,omitempty"`
+	RmcacheFrozen                bool         `json:"rmcacheFrozen,omitempty"`
+	IsOnVMware                   bool         `json:"isOnVmWare,omitempty"`
+	FaultSetID                   string       `json:"faultSetId,omitempty"`
+	NumOfIoBuffers               int          `json:"numOfIoBuffers,omitempty"`
+	RmcacheMemoryAllocationState string       `json:"RmcacheMemoryAllocationState,omitempty"`
+}
+
+type DeviceInfo struct {
+	DevicePath    string `json:"devicePath"`
+	StoragePoolID string `json:"storagePoolId"`
+	DeviceName    string `json:"deviceName,omitempty"`
+}
+
+type SdsParam struct {
+	Name               string        `json:"name,omitempty"`
+	IPList             []*SdsIpList  `json:"sdsIpList"`
+	Port               int           `json:"sdsPort,omitempty"`
+	DrlMode            string        `json:"drlMode,omitempty"`
+	RmcacheEnabled     bool          `json:"rmcacheEnabled,omitempty"`
+	RmcacheSizeInKb    int           `json:"rmcacheSizeInKb,omitempty"`
+	RmcacheFrozen      bool          `json:"rmcacheFrozen,omitempty"`
+	ProtectionDomainID string        `json:"protectionDomainId"`
+	FaultSetID         string        `json:"faultSetId,omitempty"`
+	NumOfIoBuffers     int           `json:"numOfIoBuffers,omitempty"`
+	DeviceInfoList     []*DeviceInfo `json:"deviceInfoList,omitempty"`
+	ForceClean         bool          `json:"forceClean,omitempty"`
+	DeviceTestTimeSecs int           `json:"deviceTestTimeSecs ,omitempty"`
+	DeviceTestMode     string        `json:"deviceTestMode,omitempty"`
+}
+
+type SdsResp struct {
+	ID string `json:"id"`
+}
+
+type Device struct {
+	ID                     string `json:"id,omitempty"`
+	Name                   string `json:"name,omitempty"`
+	DeviceCurrentPathname  string `json:"deviceCurrentPathname"`
+	DeviceOriginalPathname string `json:"deviceOriginalPathname,omitempty"`
+	DeviceState            string `json:"deviceState,omitempty"`
+	ErrorState             string `json:"errorState,omitempty"`
+	CapacityLimitInKb      int    `json:"capacityLimitInKb,omitempty"`
+	MaxCapacityInKb        int    `json:"maxCapacityInKb,omitempty"`
+	StoragePoolID          string `json:"storagePoolId"`
+	SdsID                  string `json:"sdsId"`
+}
+
+type DeviceParam struct {
+	Name                  string `json:"name,omitempty"`
+	DeviceCurrentPathname string `json:"deviceCurrentPathname"`
+	CapacityLimitInKb     int    `json:"capacityLimitInKb,omitempty"`
+	StoragePoolID         string `json:"storagePoolId"`
+	SdsID                 string `json:"sdsId"`
+	TestTimeSecs          int    `json:"testTimeSecs,omitempty"`
+	TestMode              string `json:"testMode,omitempty"`
+}
+
+type DeviceResp struct {
+	ID string `json:"id"`
 }
 
 type StoragePool struct {
@@ -196,6 +286,21 @@ type StoragePool struct {
 	Name                                             string  `json:"name"`
 	ID                                               string  `json:"id"`
 	Links                                            []*Link `json:"links"`
+}
+
+type StoragePoolParam struct {
+	Name                     string `json:"name"`
+	SparePercentage          int    `json:"sparePercentage,omitempty"`
+	RebuildEnabled           bool   `json:"rebuildEnabled,omitempty"`
+	RebalanceEnabled         bool   `json:"rebalanceEnabled,omitempty"`
+	ProtectionDomainID       string `json:"protectionDomainId"`
+	ZeroPaddingEnabled       bool   `json:"zeroPaddingEnabled,omitempty"`
+	UseRmcache               bool   `json:"useRmcache,omitempty"`
+	RmcacheWriteHandlingMode string `json:"rmcacheWriteHandlingMode,omitempty"`
+}
+
+type StoragePoolResp struct {
+	ID string `json:"id"`
 }
 
 type MappedSdcInfo struct {
