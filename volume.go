@@ -276,3 +276,37 @@ func (volume *Volume) RemoveVolume(removeMode string) (err error) {
 
 	return nil
 }
+
+func (volume *Volume) SetVolumeSize(sizeInGB string) (err error) {
+
+	endpoint := volume.client.SIOEndpoint
+
+	link, err := GetLink(volume.Volume.Links, "self")
+	if err != nil {
+		return errors.New("Error: problem finding link")
+	}
+	endpoint.Path = fmt.Sprintf("%v/action/setVolumeSize", link.HREF)
+
+	setVolumeSizeParam := &types.SetVolumeSizeParam{
+		SizeInGB: sizeInGB,
+	}
+
+	jsonOutput, err := json.Marshal(&setVolumeSizeParam)
+	if err != nil {
+		return fmt.Errorf("error marshaling: %s", err)
+	}
+
+	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+
+	req.SetBasicAuth("", volume.client.Token)
+	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
+
+	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
+	if err != nil {
+		return fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	return nil
+}

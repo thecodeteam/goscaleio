@@ -386,3 +386,7 @@ type VTree struct {
 type RemoveVolumeParam struct {
 	RemoveMode string `json:"removeMode"`
 }
+
+type SetVolumeSizeParam struct {
+	SizeInGB string `json:"sizeInGB"`
+}
