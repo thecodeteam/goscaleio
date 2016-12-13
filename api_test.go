@@ -1,98 +1,139 @@
 package goscaleio
 
 import (
-	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
-
-	"github.com/codedellemc/goscaleio/testutil"
-	. "gopkg.in/check.v1"
 )
 
-func Test(t *testing.T) { TestingT(t) }
-
-type S struct {
-	client *Client
-}
-
-var _ = Suite(&S{})
-
-var testServer = testutil.NewHTTPServer()
-
-var authheader = map[string]string{"x-scaleio-authorization": "012345678901234567890123456789"}
-
-func (s *S) SetUpSuite(c *C) {
-	testServer.Start()
-	var err error
-
-	os.Setenv("GOSCALEIO_ENDPOINT", "http://localhost:4444/api")
-
+func setupClient(t *testing.T, hostAddr string) *Client {
+	os.Setenv("GOSCALEIO_ENDPOINT", hostAddr+"/api")
 	client, err := NewClient()
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-
-	testServer.ResponseMap(1,
-		testutil.ResponseMap{
-			"/api/auth/login": testutil.Response{201, authheader, vaauthorization},
-		},
-	)
-
-	_, err = client.Authenticate(&ConfigConnect{Username: "username", Password: "password", Endpoint: "http://localhost:4444/api", Version: "2.0"})
+	// test ok
+	_, err = client.Authenticate(&ConfigConnect{
+		Username: "ScaleIOUser",
+		Password: "password",
+		Version:  "2.0",
+	})
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-
-	if client.Token == "" {
-		errors.New("missing Token")
-	}
-
+	return client
 }
 
-func (s *S) TearDownTest(c *C) {
-	testServer.Flush()
+func requestAuthOK(resp http.ResponseWriter, req *http.Request) bool {
+	_, pwd, _ := req.BasicAuth()
+	if pwd == "" {
+		resp.WriteHeader(http.StatusUnauthorized)
+		resp.Write([]byte(`{"message":"Unauthorized","httpStatusCode":401,"errorCode":0}`))
+		return false
+	}
+	return true
 }
 
-func TestClient_Authenticate(t *testing.T) {
+func handleAuthToken(resp http.ResponseWriter, req *http.Request) {
+	if !requestAuthOK(resp, req) {
+		return
+	}
+	resp.WriteHeader(http.StatusOK)
+	resp.Write([]byte(`"012345678901234567890123456789"`))
+}
 
-	testServer.Start()
-	var err error
-	os.Setenv("GOSCALEIO_ENDPOINT", "http://localhost:4444/api")
+func TestClientVersion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(
+		func(resp http.ResponseWriter, req *http.Request) {
+			if req.RequestURI != "/api/version" {
+				t.Fatal("Expecting endpoint /api/version got", req.RequestURI)
+			}
+			resp.WriteHeader(http.StatusOK)
+			resp.Write([]byte(`"2.0"`))
+		},
+	))
+	defer server.Close()
+	hostAddr := server.URL
+	os.Setenv("GOSCALEIO_ENDPOINT", hostAddr+"/api")
 	client, err := NewClient()
 	if err != nil {
-		t.Fatalf("err: %v", err)
+		t.Fatal(err)
 	}
-
-	testServer.ResponseMap(1,
-		testutil.ResponseMap{
-			"/api/auth/login": testutil.Response{201, authheader, vaauthorization},
-		},
-	)
-
-	_, err = client.Authenticate(&ConfigConnect{Username: "username", Password: "password", Endpoint: "", Version: "2.0"})
-	_ = testServer.WaitRequests(1)
-	testServer.Flush()
+	ver, err := client.getVersion()
 	if err != nil {
-		t.Fatalf("Uncatched error: %v", err)
+		t.Fatal(err)
 	}
+	if ver != "2.0" {
+		t.Fatal("Expecting version string \"2.0\", got ", ver)
+	}
+}
 
+func TestClientLogin(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(
+		func(resp http.ResponseWriter, req *http.Request) {
+			switch req.RequestURI {
+			case "/api/version":
+				resp.WriteHeader(http.StatusOK)
+				resp.Write([]byte(`"2.0"`))
+			case "/api/login":
+				//accept := req.Header.Get("Accept")
+				// check Accept header
+				//if ver := strings.Split(accept, ";"); len(ver) != 2 {
+				//	t.Fatal("Expecting Accept header to include version")
+				//} else {
+				//	if !strings.HasPrefix(ver[1], "version=") {
+				//		t.Fatal("Header Accept must include version")
+				//	}
+				//}
+
+				uname, pwd, basic := req.BasicAuth()
+				if !basic {
+					t.Fatal("Client only support basic auth")
+				}
+
+				if uname != "ScaleIOUser" || pwd != "password" {
+					resp.WriteHeader(http.StatusUnauthorized)
+					resp.Write([]byte(`{"message":"Unauthorized","httpStatusCode":401,"errorCode":0}`))
+					return
+				}
+				resp.WriteHeader(http.StatusOK)
+				resp.Write([]byte(`"012345678901234567890123456789"`))
+			default:
+				t.Fatal("Expecting endpoint /api/login got", req.RequestURI)
+			}
+
+		},
+	))
+	defer server.Close()
+	hostAddr := server.URL
+	os.Setenv("GOSCALEIO_ENDPOINT", hostAddr+"/api")
+	client, err := NewClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// test ok
+	_, err = client.Authenticate(&ConfigConnect{
+		Username: "ScaleIOUser",
+		Password: "password",
+		Endpoint: "",
+		Version:  "2.0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if client.Token != "012345678901234567890123456789" {
-		t.Fatalf("Token not set correctly on client: %s", client.Token)
+		t.Fatal("Expecting token 012345678901234567890123456789, got", client.Token)
 	}
 
+	// test bad login
+	_, err = client.Authenticate(&ConfigConnect{
+		Username: "ScaleIOUser",
+		Password: "badPassWord",
+		Endpoint: "",
+		Version:  "2.0",
+	})
+	if err == nil {
+		t.Fatal("Expecting an error for bad Login, but did not")
+	}
 }
-
-// status: 201
-var vaauthorization = `
-  <?xml version="1.0" ?>
-  <Session href="http://localhost:4444/api/vchs/session" type="application/xml;class=vnd.vmware.vchs.session" xmlns="http://www.vmware.com/vchs/v5.6" xmlns:tns="http://www.vmware.com/vchs/v5.6" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <Link href="http://localhost:4444/api/vchs/services" rel="down" type="application/xml;class=vnd.vmware.vchs.servicelist"/>
-      <Link href="http://localhost:4444/api/vchs/session" rel="remove"/>
-  </Session>
-  `
-var vaauthorizationErr = `
-  <?xml version="1.0" ?>
-  <Session href="http://localhost:4444/api/vchs/session" type="application/xml;class=vnd.vmware.vchs.session" xmlns="http://www.vmware.com/vchs/v5.6" xmlns:tns="http://www.vmware.com/vchs/v5.6" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-      <Link href="http://localhost:4444/api/vchs/session" rel="remove"/>
-  </Session>
-  `
