@@ -30,26 +30,27 @@ func NewSdsEx(client *Client, sds *types.Sds) *Sds {
 	}
 }
 
-func (protectionDomain *ProtectionDomain) CreateSds(name string, ipList []string) (string, error) {
+func (protectionDomain *ProtectionDomain) CreateSds(name string, ipList []string, ipMode []string, faultSetId string) (string, error) {
+	if len(ipList) == 0 {
+		return "", fmt.Errorf("Must provide at least 1 SDS IP")
+	}
+	if len(ipList) != len(ipMode) {
+		return "", fmt.Errorf("The length of the ipList must match the length of the ipMode.")
+	}
+
 	endpoint := protectionDomain.client.SIOEndpoint
 
 	sdsParam := &types.SdsParam{}
 	sdsParam.Name = name
 	sdsParam.ProtectionDomainID = protectionDomain.ProtectionDomain.ID
+	if len(faultSetId) > 0 {
+		sdsParam.FaultSetID = faultSetId
+	}
 
-	if len(ipList) == 0 {
-		return "", fmt.Errorf("Must provide at least 1 SDS IP")
-	} else if len(ipList) == 1 {
-		sdsIP := types.SdsIp{IP: ipList[0], Role: "all"}
+	for i := 0; i < len(ipList); i++ {
+		sdsIP := types.SdsIp{IP: ipList[0], Role: ipMode[0]}
 		sdsIPList := &types.SdsIpList{sdsIP}
 		sdsParam.IPList = append(sdsParam.IPList, sdsIPList)
-	} else if len(ipList) >= 2 {
-		sdsIP1 := types.SdsIp{IP: ipList[0], Role: "sdcOnly"}
-		sdsIP2 := types.SdsIp{IP: ipList[1], Role: "sdsOnly"}
-		sdsIPList1 := &types.SdsIpList{sdsIP1}
-		sdsIPList2 := &types.SdsIpList{sdsIP2}
-		sdsParam.IPList = append(sdsParam.IPList, sdsIPList1)
-		sdsParam.IPList = append(sdsParam.IPList, sdsIPList2)
 	}
 
 	jsonOutput, err := json.Marshal(&sdsParam)
