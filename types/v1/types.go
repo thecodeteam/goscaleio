@@ -168,6 +168,21 @@ type ProtectionDomainResp struct {
 	ID string `json:"id"`
 }
 
+type FaultSet struct {
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	ProtectionDomainID string `json:"protectionDomainId"`
+}
+
+type FaultSetParam struct {
+	Name               string `json:"name,omitempty"`
+	ProtectionDomainID string `json:"protectionDomainId"`
+}
+
+type FaultSetResp struct {
+	ID string `json:"id"`
+}
+
 type Sdc struct {
 	SystemID           string  `json:"systemId"`
 	SdcApproved        bool    `json:"sdcApproved"`
