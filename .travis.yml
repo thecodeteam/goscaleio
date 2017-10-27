@@ -1,10 +1,11 @@
+go_import_path: github.com/thecodeteam/goscaleio
+
 language: go
+go:
+  - 1.8.3
+  - 1.9.1
+os:
+  - linux
 
-install:
-  - go get -t ./...
-  - go get code.google.com/p/go.tools/cmd/cover
-  - go get github.com/mattn/goveralls
-
-script:
-  - PATH="$HOME/gopath/bin:$PATH"
-  - script/coverage --coveralls
+install: true
+script:  go build
