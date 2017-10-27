@@ -1,10 +1,13 @@
 package goscaleio
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 
-	types "github.com/codedellemc/goscaleio/types/v1"
+	types "github.com/thecodeteam/goscaleio/types/v1"
 )
 
 type ProtectionDomain struct {
@@ -17,6 +20,50 @@ func NewProtectionDomain(client *Client) *ProtectionDomain {
 		ProtectionDomain: new(types.ProtectionDomain),
 		client:           client,
 	}
+}
+
+func NewProtectionDomainEx(client *Client, pd *types.ProtectionDomain) *ProtectionDomain {
+	return &ProtectionDomain{
+		ProtectionDomain: pd,
+		client:           client,
+	}
+}
+
+func (system *System) CreateProtectionDomain(name string) (string, error) {
+	endpoint := system.client.SIOEndpoint
+
+	protectionDomainParam := &types.ProtectionDomainParam{}
+	protectionDomainParam.Name = name
+
+	jsonOutput, err := json.Marshal(&protectionDomainParam)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling: %s", err)
+	}
+	endpoint.Path = fmt.Sprintf("/api/types/ProtectionDomain/instances")
+
+	req := system.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+	req.SetBasicAuth("", system.client.Token)
+	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+system.client.configConnect.Version)
+
+	resp, err := system.client.retryCheckResp(&system.client.Http, req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.New("error reading body")
+	}
+
+	var pd types.ProtectionDomainResp
+	err = json.Unmarshal(bs, &pd)
+	if err != nil {
+		return "", err
+	}
+
+	return pd.ID, nil
 }
 
 func (system *System) GetProtectionDomain(protectiondomainhref string) (protectionDomains []*types.ProtectionDomain, err error) {
@@ -81,5 +128,4 @@ func (system *System) FindProtectionDomain(id, name, href string) (protectionDom
 	}
 
 	return &types.ProtectionDomain{}, errors.New("Couldn't find protection domain")
-
 }

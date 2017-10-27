@@ -1,10 +1,13 @@
 package goscaleio
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 
-	types "github.com/codedellemc/goscaleio/types/v1"
+	types "github.com/thecodeteam/goscaleio/types/v1"
 )
 
 type StoragePool struct {
@@ -17,6 +20,51 @@ func NewStoragePool(client *Client) *StoragePool {
 		StoragePool: new(types.StoragePool),
 		client:      client,
 	}
+}
+
+func NewStoragePoolEx(client *Client, pool *types.StoragePool) *StoragePool {
+	return &StoragePool{
+		StoragePool: pool,
+		client:      client,
+	}
+}
+
+func (protectionDomain *ProtectionDomain) CreateStoragePool(name string) (string, error) {
+	endpoint := protectionDomain.client.SIOEndpoint
+
+	storagePoolParam := &types.StoragePoolParam{}
+	storagePoolParam.Name = name
+	storagePoolParam.ProtectionDomainID = protectionDomain.ProtectionDomain.ID
+
+	jsonOutput, err := json.Marshal(&storagePoolParam)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling: %s", err)
+	}
+	endpoint.Path = fmt.Sprintf("/api/types/StoragePool/instances")
+
+	req := protectionDomain.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+	req.SetBasicAuth("", protectionDomain.client.Token)
+	req.Header.Add("Accept", "application/json;version="+protectionDomain.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+protectionDomain.client.configConnect.Version)
+
+	resp, err := protectionDomain.client.retryCheckResp(&protectionDomain.client.Http, req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.New("error reading body")
+	}
+
+	var sp types.StoragePoolResp
+	err = json.Unmarshal(bs, &sp)
+	if err != nil {
+		return "", err
+	}
+
+	return sp.ID, nil
 }
 
 func (protectionDomain *ProtectionDomain) GetStoragePool(storagepoolhref string) (storagePools []*types.StoragePool, err error) {
