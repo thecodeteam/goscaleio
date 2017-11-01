@@ -186,3 +186,28 @@ func (volume *Volume) UnmapVolumeSdc(unmapVolumeSdcParam *types.UnmapVolumeSdcPa
 
 	return nil
 }
+
+func (volume *Volume) SetMappedSdcLimits(setMappedSdcLimitsParam *types.SetMappedSdcLimitsParam) (err error) {
+	endpoint := volume.client.SIOEndpoint
+
+	endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s/action/setMappedSdcLimits", volume.Volume.ID)
+
+	jsonOutput, err := json.Marshal(&setMappedSdcLimitsParam)
+	if err != nil {
+		log.Fatalf("error marshaling: %s", err)
+	}
+
+	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
+	req.SetBasicAuth("", volume.client.Token)
+	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
+	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
+
+	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
+	if err != nil {
+		return fmt.Errorf("problem getting response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
