@@ -1,11 +1,9 @@
 package goscaleio
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"net/http"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -25,105 +23,74 @@ func NewSdc(client *Client, sdc *types.Sdc) *Sdc {
 	}
 }
 
-func (system *System) GetSdc() (sdcs []types.Sdc, err error) {
-	endpoint := system.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/Sdc", system.System.ID)
+func (s *System) GetSdc() ([]types.Sdc, error) {
 
-	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
+	path := fmt.Sprintf("/api/instances/System::%v/relationships/Sdc",
+		s.System.ID)
 
-	resp, err := system.client.retryCheckResp(&system.client.Http, req)
+	var sdcs []types.Sdc
+	err := s.client.getJSONWithRetry(
+		http.MethodGet, path, nil, &sdcs)
 	if err != nil {
-		return []types.Sdc{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = system.client.decodeBody(resp, &sdcs); err != nil {
-		return []types.Sdc{}, fmt.Errorf("error decoding instances response: %s", err)
+		return nil, err
 	}
 
-	// bs, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return []types.Sdc{}, errors.New("error reading body")
-	// }
-	//
-	// fmt.Println(string(bs))
-	// log.Fatalf("here")
-	// return []types.Sdc{}, nil
 	return sdcs, nil
 }
 
-func (system *System) FindSdc(field, value string) (sdc *Sdc, err error) {
-	sdcs, err := system.GetSdc()
+func (s *System) FindSdc(field, value string) (*Sdc, error) {
+
+	sdcs, err := s.GetSdc()
 	if err != nil {
-		return &Sdc{}, nil
+		return nil, err
 	}
 
 	for _, sdc := range sdcs {
 		valueOf := reflect.ValueOf(sdc)
 		switch {
 		case reflect.Indirect(valueOf).FieldByName(field).String() == value:
-			return NewSdc(system.client, &sdc), nil
+			return NewSdc(s.client, &sdc), nil
 		}
 	}
 
-	return &Sdc{}, errors.New("Couldn't find SDC")
+	return nil, errors.New("Couldn't find SDC")
 }
 
-func (sdc *Sdc) GetStatistics() (statistics *types.Statistics, err error) {
-	endpoint := sdc.client.SIOEndpoint
+func (sdc *Sdc) GetStatistics() (*types.Statistics, error) {
 
 	link, err := GetLink(sdc.Sdc.Links, "/api/Sdc/relationship/Statistics")
 	if err != nil {
-		return &types.Statistics{}, errors.New("Error: problem finding link")
+		return nil, err
 	}
-	endpoint.Path = link.HREF
 
-	req := sdc.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", sdc.client.Token)
-	req.Header.Add("Accept", "application/json;version="+sdc.client.configConnect.Version)
-
-	resp, err := sdc.client.retryCheckResp(&sdc.client.Http, req)
+	var stats *types.Statistics
+	err = sdc.client.getJSONWithRetry(
+		http.MethodGet, link.HREF, nil, stats)
 	if err != nil {
-		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = sdc.client.decodeBody(resp, &statistics); err != nil {
-		return &types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
+		return nil, err
 	}
 
-	return statistics, nil
+	return stats, nil
 }
 
-func (sdc *Sdc) GetVolume() (volumes []*types.Volume, err error) {
-	endpoint := sdc.client.SIOEndpoint
+func (sdc *Sdc) GetVolume() ([]*types.Volume, error) {
 
 	link, err := GetLink(sdc.Sdc.Links, "/api/Sdc/relationship/Volume")
 	if err != nil {
-		return []*types.Volume{}, errors.New("Error: problem finding link")
+		return nil, err
 	}
-	endpoint.Path = link.HREF
 
-	req := sdc.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", sdc.client.Token)
-	req.Header.Add("Accept", "application/json;version="+sdc.client.configConnect.Version)
-
-	resp, err := sdc.client.retryCheckResp(&sdc.client.Http, req)
+	var vols []*types.Volume
+	err = sdc.client.getJSONWithRetry(
+		http.MethodGet, link.HREF, nil, &vols)
 	if err != nil {
-		return []*types.Volume{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = sdc.client.decodeBody(resp, &volumes); err != nil {
-		return []*types.Volume{}, fmt.Errorf("error decoding instances response: %s", err)
+		return nil, err
 	}
 
-	return volumes, nil
+	return vols, nil
 }
 
-func GetSdcLocalGUID() (sdcGUID string, err error) {
+func GetSdcLocalGUID() (string, error) {
 
 	// get sdc kernel guid
 	// /bin/emc/scaleio/drv_cfg --query_guid
@@ -134,80 +101,53 @@ func GetSdcLocalGUID() (sdcGUID string, err error) {
 		return "", fmt.Errorf("GetSdcLocalGUID: query vols failed: %v", err)
 	}
 
-	sdcGUID = strings.Replace(string(out), "\n", "", -1)
+	sdcGUID := strings.Replace(string(out), "\n", "", -1)
 
 	return sdcGUID, nil
 }
 
-func (volume *Volume) MapVolumeSdc(mapVolumeSdcParam *types.MapVolumeSdcParam) (err error) {
-	endpoint := volume.client.SIOEndpoint
+func (v *Volume) MapVolumeSdc(
+	mapVolumeSdcParam *types.MapVolumeSdcParam) error {
 
-	endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s/action/addMappedSdc", volume.Volume.ID)
+	path := fmt.Sprintf("/api/instances/Volume::%s/action/addMappedSdc",
+		v.Volume.ID)
 
-	jsonOutput, err := json.Marshal(&mapVolumeSdcParam)
+	err := v.client.getJSONWithRetry(
+		http.MethodPost, path, mapVolumeSdcParam, nil)
 	if err != nil {
-		log.Fatalf("error marshaling: %s", err)
+		return err
 	}
-
-	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", volume.client.Token)
-	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
-
-	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
-	if err != nil {
-		return fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
 
 	return nil
 }
 
-func (volume *Volume) UnmapVolumeSdc(unmapVolumeSdcParam *types.UnmapVolumeSdcParam) (err error) {
-	endpoint := volume.client.SIOEndpoint
+func (v *Volume) UnmapVolumeSdc(
+	unmapVolumeSdcParam *types.UnmapVolumeSdcParam) error {
 
-	endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s/action/removeMappedSdc", volume.Volume.ID)
+	path := fmt.Sprintf("/api/instances/Volume::%s/action/removeMappedSdc",
+		v.Volume.ID)
 
-	jsonOutput, err := json.Marshal(&unmapVolumeSdcParam)
+	err := v.client.getJSONWithRetry(
+		http.MethodPost, path, unmapVolumeSdcParam, nil)
 	if err != nil {
-		return fmt.Errorf("error marshaling: %s", err)
+		return err
 	}
-
-	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", volume.client.Token)
-	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
-
-	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
-	if err != nil {
-		return fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
 
 	return nil
 }
 
-func (volume *Volume) SetMappedSdcLimits(setMappedSdcLimitsParam *types.SetMappedSdcLimitsParam) (err error) {
-	endpoint := volume.client.SIOEndpoint
+func (v *Volume) SetMappedSdcLimits(
+	setMappedSdcLimitsParam *types.SetMappedSdcLimitsParam) error {
 
-	endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s/action/setMappedSdcLimits", volume.Volume.ID)
+	path := fmt.Sprintf(
+		"/api/instances/Volume::%s/action/setMappedSdcLimits",
+		v.Volume.ID)
 
-	jsonOutput, err := json.Marshal(&setMappedSdcLimitsParam)
+	err := v.client.getJSONWithRetry(
+		http.MethodPost, path, setMappedSdcLimitsParam, nil)
 	if err != nil {
-		log.Fatalf("error marshaling: %s", err)
+		return err
 	}
-
-	req := volume.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", volume.client.Token)
-	req.Header.Add("Accept", "application/json;version="+volume.client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+volume.client.configConnect.Version)
-
-	resp, err := volume.client.retryCheckResp(&volume.client.Http, req)
-	if err != nil {
-		return fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
 
 	return nil
 }
-

@@ -1,10 +1,8 @@
 package goscaleio
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
+	"net/http"
 
 	types "github.com/thecodeteam/goscaleio/types/v1"
 )
@@ -16,91 +14,63 @@ type System struct {
 
 func NewSystem(client *Client) *System {
 	return &System{
-		System: new(types.System),
+		System: &types.System{},
 		client: client,
 	}
 }
 
-func (client *Client) FindSystem(instanceID, name, href string) (*System, error) {
-	systems, err := client.GetInstance(href)
+func (c *Client) FindSystem(
+	instanceID, name, href string) (*System, error) {
+
+	systems, err := c.GetInstance(href)
 	if err != nil {
-		return &System{}, fmt.Errorf("err: problem getting instances: %s", err)
+		return nil, fmt.Errorf("err: problem getting instances: %s", err)
 	}
 
 	for _, system := range systems {
 		if system.ID == instanceID || system.Name == name || href != "" {
-			outSystem := NewSystem(client)
+			outSystem := NewSystem(c)
 			outSystem.System = system
 			return outSystem, nil
 		}
 	}
-	return &System{}, fmt.Errorf("err: systemid or systemname not found")
+	return nil, fmt.Errorf("err: systemid or systemname not found")
 }
 
-func (system *System) GetStatistics() (statistics *types.Statistics, err error) {
-	endpoint := system.client.SIOEndpoint
-	// endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/Statistics", system.System.ID)
+func (s *System) GetStatistics() (*types.Statistics, error) {
 
-	link, err := GetLink(system.System.Links, "/api/System/relationship/Statistics")
+	link, err := GetLink(s.System.Links,
+		"/api/System/relationship/Statistics")
 	if err != nil {
-		return &types.Statistics{}, errors.New("Error: problem finding link")
+		return nil, err
 	}
 
-	endpoint.Path = link.HREF
-
-	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
-
-	resp, err := system.client.retryCheckResp(&system.client.Http, req)
+	stats := types.Statistics{}
+	err = s.client.getJSONWithRetry(
+		http.MethodGet, link.HREF, nil, &stats)
 	if err != nil {
-		return &types.Statistics{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = system.client.decodeBody(resp, &statistics); err != nil {
-		return &types.Statistics{}, fmt.Errorf("error decoding instances response: %s", err)
+		return nil, err
 	}
 
-	// bs, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return errors.New("error reading body")
-	// }
-	//
-	// fmt.Println(string(bs))
-	return statistics, nil
+	return &stats, nil
 }
 
-func (system *System) CreateSnapshotConsistencyGroup(snapshotVolumesParam *types.SnapshotVolumesParam) (snapshotVolumesResp *types.SnapshotVolumesResp, err error) {
-	endpoint := system.client.SIOEndpoint
+func (s *System) CreateSnapshotConsistencyGroup(
+	snapshotVolumesParam *types.SnapshotVolumesParam) (*types.SnapshotVolumesResp, error) {
 
-	link, err := GetLink(system.System.Links, "self")
+	link, err := GetLink(s.System.Links, "self")
 	if err != nil {
-		return &types.SnapshotVolumesResp{}, errors.New("Error: problem finding link")
+		return nil, err
 	}
 
-	endpoint.Path = fmt.Sprintf("%v/action/snapshotVolumes", link.HREF)
+	path := fmt.Sprintf("%v/action/snapshotVolumes", link.HREF)
 
-	jsonOutput, err := json.Marshal(&snapshotVolumesParam)
+	snapResp := types.SnapshotVolumesResp{}
+	err = s.client.getJSONWithRetry(
+		http.MethodPost, path, snapshotVolumesParam, &snapResp)
 	if err != nil {
-		return &types.SnapshotVolumesResp{}, fmt.Errorf("error marshaling: %s", err)
+		return nil, err
 	}
 
-	req := system.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+system.client.configConnect.Version)
-
-	resp, err := system.client.retryCheckResp(&system.client.Http, req)
-	if err != nil {
-		return &types.SnapshotVolumesResp{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = system.client.decodeBody(resp, &snapshotVolumesResp); err != nil {
-		return &types.SnapshotVolumesResp{}, fmt.Errorf("error decoding snapshotvolumes response: %s", err)
-	}
-
-	return snapshotVolumesResp, nil
-
+	return &snapResp, nil
 }

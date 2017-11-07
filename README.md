@@ -40,7 +40,7 @@ Once a client struct is created via the ```NewClient()``` function, you can repl
       log.Fatalf("error with NewClient: %s", err)
     }
 
-    client.Token = oldToken
+    client.SetToken(oldToken)
 
 ### Get Systems
 Retrieving systems is the first step after authentication which enables you to work with other necessary methods.
@@ -68,6 +68,18 @@ Once you have a ```System``` struct you can then get other things like ```Protec
       log.Fatalf("error getting protection domains: %v", err)
     }
 
+## Debugging
+
+Two environment variables can be set to aid in debugging
+
+Env Var | Default Value |
+-- | -- |
+`GOSCALEIO_DEBUG` | `false`
+`GOSCALEIO_SHOWHTTP` | `false`
+
+Setting `GOSCALEIO_DEBUG` well enable logging to `stdout`.
+Setting `GOSCALEIO_SHOWHTTP` will log all HTTP requests and responses to `stdout`.
+
 
 <a id="licensing">Licensing</a>
 ---------
@@ -78,4 +90,4 @@ Unless required by applicable law or agreed to in writing, software distributed 
 <a id="support">Support</a>
 -------
 
-Please file bugs and issues on the Github issues page for this project. This is to help keep track and document everything related to this repo. For general discussions and further support you can join the [EMC {code} Community slack channel](http://community.emccode.com/). Lastly, for questions asked on [Stackoverflow.com](https://stackoverflow.com) please tag them with **EMC**. The code and documentation are released with no warranties or SLAs and are intended to be supported through a community driven process.
+Please file bugs and issues on the Github issues page for this project. This is to help keep track and document everything related to this repo. For general discussions and further support you can join the [{code} Community slack channel](https://community.thecodeteam.com/). The code and documentation are released with no warranties or SLAs and are intended to be supported through a community driven process.

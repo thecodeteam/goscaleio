@@ -2,34 +2,22 @@ package goscaleio
 
 import (
 	"fmt"
+	"net/http"
 
 	types "github.com/thecodeteam/goscaleio/types/v1"
 )
 
-func (system *System) GetUser() (user []types.User, err error) {
-	endpoint := system.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/System::%v/relationships/User", system.System.ID)
+func (s *System) GetUser() ([]types.User, error) {
 
-	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
+	path := fmt.Sprintf("/api/instances/System::%v/relationships/User",
+		s.System.ID)
 
-	resp, err := system.client.retryCheckResp(&system.client.Http, req)
+	var user []types.User
+	err := s.client.getJSONWithRetry(
+		http.MethodGet, path, nil, &user)
 	if err != nil {
-		return []types.User{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = system.client.decodeBody(resp, &user); err != nil {
-		return []types.User{}, fmt.Errorf("error decoding instances response: %s", err)
+		return nil, err
 	}
 
-	// bs, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return types.User{}, errors.New("error reading body")
-	// }
-	//
-	// fmt.Println(string(bs))
-	// return types.User{}, nil
 	return user, nil
 }
