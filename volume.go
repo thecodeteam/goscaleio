@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -132,29 +131,7 @@ func (storagePool *StoragePool) FindVolumeID(volumename string) (volumeID string
 
 func GetLocalVolumeMap() (mappedVolumes []*SdcMappedVolume, err error) {
 
-	// get sdc kernel guid
-	// /bin/emc/scaleio/drv_cfg --query_guid
-	// sdcKernelGuid := "271bad82-08ee-44f2-a2b1-7e2787c27be1"
-
 	mappedVolumesMap := make(map[string]*SdcMappedVolume)
-
-	out, err := exec.Command("/opt/emc/scaleio/sdc/bin/drv_cfg", "--query_vols").Output()
-	if err != nil {
-		return []*SdcMappedVolume{},
-			fmt.Errorf("GetLocalVolumeMap: query vols failed: %v", err)
-	}
-
-	result := string(out)
-	lines := strings.Split(result, "\n")
-
-	for _, line := range lines {
-		split := strings.Split(line, " ")
-		if split[0] == "VOL-ID" {
-			mappedVolume := &SdcMappedVolume{MdmID: split[3], VolumeID: split[1]}
-			mdmVolumeID := fmt.Sprintf("%s-%s", mappedVolume.MdmID, mappedVolume.VolumeID)
-			mappedVolumesMap[mdmVolumeID] = mappedVolume
-		}
-	}
 
 	diskIDPath := "/dev/disk/by-id"
 	files, _ := ioutil.ReadDir(diskIDPath)
@@ -162,11 +139,10 @@ func GetLocalVolumeMap() (mappedVolumes []*SdcMappedVolume, err error) {
 	for _, f := range files {
 		matched := r.MatchString(f.Name())
 		if matched {
-			mdmVolumeID := strings.Replace(f.Name(), "emc-vol-", "", 1)
+			split := strings.Split(f.Name(), "-")
+			mdmVolumeID := fmt.Sprintf("%s-%s", split[2], split[3])
 			devPath, _ := filepath.EvalSymlinks(fmt.Sprintf("%s/%s", diskIDPath, f.Name()))
-			if _, ok := mappedVolumesMap[mdmVolumeID]; ok {
-				mappedVolumesMap[mdmVolumeID].SdcDevice = devPath
-			}
+			mappedVolumesMap[mdmVolumeID] = &SdcMappedVolume{MdmID: split[2], VolumeID: split[3], SdcDevice: devPath}
 		}
 	}
 
