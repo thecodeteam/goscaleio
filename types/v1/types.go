@@ -361,6 +361,12 @@ type UnmapVolumeSdcParam struct {
 	AllSdcs              string `json:"allSdcs,omitempty"`
 }
 
+type SetMappedSdcLimitsParam struct {
+	SdcID                string `json:"sdcId,omitempty"`
+	BandwidthLimitInKbps string `json:"bandwidthLimitInKbps,omitempty"`
+	IopsLimit            string `json:"iopsLimit,omitempty"`
+}
+
 type SnapshotDef struct {
 	VolumeID     string `json:"volumeId,omitempty"`
 	SnapshotName string `json:"snapshotName,omitempty"`
