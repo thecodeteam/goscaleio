@@ -1,11 +1,13 @@
 package goscaleio
 
 type Error struct {
-	Message                 string `xml:"message,attr"`
-	MajorErrorCode          int    `xml:"majorErrorCode,attr"`
-	MinorErrorCode          string `xml:"minorErrorCode,attr"`
-	VendorSpecificErrorCode string `xml:"vendorSpecificErrorCode,attr,omitempty"`
-	StackTrace              string `xml:"stackTrace,attr,omitempty"`
+	Message        string `json:"message"`
+	HTTPStatusCode int    `json:"httpStatusCode"`
+	ErrorCode      int    `json:"errorCode"`
+}
+
+func (e Error) Error() string {
+	return e.Message
 }
 
 // type session struct {

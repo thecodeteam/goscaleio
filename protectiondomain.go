@@ -1,11 +1,9 @@
 package goscaleio
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"net/http"
 
 	types "github.com/thecodeteam/goscaleio/types/v1"
 )
@@ -17,7 +15,7 @@ type ProtectionDomain struct {
 
 func NewProtectionDomain(client *Client) *ProtectionDomain {
 	return &ProtectionDomain{
-		ProtectionDomain: new(types.ProtectionDomain),
+		ProtectionDomain: &types.ProtectionDomain{},
 		client:           client,
 	}
 }
@@ -29,36 +27,17 @@ func NewProtectionDomainEx(client *Client, pd *types.ProtectionDomain) *Protecti
 	}
 }
 
-func (system *System) CreateProtectionDomain(name string) (string, error) {
-	endpoint := system.client.SIOEndpoint
+func (s *System) CreateProtectionDomain(name string) (string, error) {
 
-	protectionDomainParam := &types.ProtectionDomainParam{}
-	protectionDomainParam.Name = name
-
-	jsonOutput, err := json.Marshal(&protectionDomainParam)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling: %s", err)
-	}
-	endpoint.Path = fmt.Sprintf("/api/types/ProtectionDomain/instances")
-
-	req := system.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+system.client.configConnect.Version)
-
-	resp, err := system.client.retryCheckResp(&system.client.Http, req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	bs, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.New("error reading body")
+	protectionDomainParam := &types.ProtectionDomainParam{
+		Name: name,
 	}
 
-	var pd types.ProtectionDomainResp
-	err = json.Unmarshal(bs, &pd)
+	path := fmt.Sprintf("/api/types/ProtectionDomain/instances")
+
+	pd := types.ProtectionDomainResp{}
+	err := s.client.getJSONWithRetry(
+		http.MethodPost, path, protectionDomainParam, &pd)
 	if err != nil {
 		return "", err
 	}
@@ -66,66 +45,53 @@ func (system *System) CreateProtectionDomain(name string) (string, error) {
 	return pd.ID, nil
 }
 
-func (system *System) GetProtectionDomain(protectiondomainhref string) (protectionDomains []*types.ProtectionDomain, err error) {
+func (s *System) GetProtectionDomain(
+	pdhref string) ([]*types.ProtectionDomain, error) {
 
-	endpoint := system.client.SIOEndpoint
+	var (
+		err error
+		pd  = &types.ProtectionDomain{}
+		pds []*types.ProtectionDomain
+	)
 
-	if protectiondomainhref == "" {
-		link, err := GetLink(system.System.Links, "/api/System/relationship/ProtectionDomain")
+	if pdhref == "" {
+		var link *types.Link
+		link, err = GetLink(
+			s.System.Links,
+			"/api/System/relationship/ProtectionDomain")
 		if err != nil {
-			return []*types.ProtectionDomain{}, errors.New("Error: problem finding link")
+			return nil, err
 		}
 
-		endpoint.Path = link.HREF
+		err = s.client.getJSONWithRetry(
+			http.MethodGet, link.HREF, nil, &pds)
 	} else {
-		endpoint.Path = protectiondomainhref
+		err = s.client.getJSONWithRetry(
+			http.MethodGet, pdhref, nil, pd)
 	}
-
-	req := system.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", system.client.Token)
-	req.Header.Add("Accept", "application/json;version="+system.client.configConnect.Version)
-
-	resp, err := system.client.retryCheckResp(&system.client.Http, req)
 	if err != nil {
-		return []*types.ProtectionDomain{}, fmt.Errorf("problem getting response: %v", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
 
-	if protectiondomainhref == "" {
-		if err = system.client.decodeBody(resp, &protectionDomains); err != nil {
-			return []*types.ProtectionDomain{}, fmt.Errorf("error decoding instances response: %s", err)
-		}
-	} else {
-		protectionDomain := &types.ProtectionDomain{}
-		if err = system.client.decodeBody(resp, &protectionDomain); err != nil {
-			return []*types.ProtectionDomain{}, fmt.Errorf("error decoding instances response: %s", err)
-		}
-		protectionDomains = append(protectionDomains, protectionDomain)
-
+	if pdhref != "" {
+		pds = append(pds, pd)
 	}
-	//
-	// bs, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return []types.ProtectionDomain{}, errors.New("error reading body")
-	// }
-	//
-	// fmt.Println(string(bs))
-	// log.Fatalf("here")
-	// return []types.ProtectionDomain{}, nil
-	return protectionDomains, nil
+	return pds, nil
 }
 
-func (system *System) FindProtectionDomain(id, name, href string) (protectionDomain *types.ProtectionDomain, err error) {
-	protectionDomains, err := system.GetProtectionDomain(href)
+func (s *System) FindProtectionDomain(
+	id, name, href string) (*types.ProtectionDomain, error) {
+
+	pds, err := s.GetProtectionDomain(href)
 	if err != nil {
-		return &types.ProtectionDomain{}, fmt.Errorf("Error getting protection domains %s", err)
+		return nil, fmt.Errorf("Error getting protection domains %s", err)
 	}
 
-	for _, protectionDomain = range protectionDomains {
-		if protectionDomain.ID == id || protectionDomain.Name == name || href != "" {
-			return protectionDomain, nil
+	for _, pd := range pds {
+		if pd.ID == id || pd.Name == name || href != "" {
+			return pd, nil
 		}
 	}
 
-	return &types.ProtectionDomain{}, errors.New("Couldn't find protection domain")
+	return nil, errors.New("Couldn't find protection domain")
 }

@@ -122,8 +122,8 @@ func TestClientLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if client.Token != "012345678901234567890123456789" {
-		t.Fatal("Expecting token 012345678901234567890123456789, got", client.Token)
+	if client.GetToken() != "012345678901234567890123456789" {
+		t.Fatal("Expecting token 012345678901234567890123456789, got", client.GetToken())
 	}
 
 	// test bad login

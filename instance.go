@@ -1,91 +1,81 @@
 package goscaleio
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"strings"
+	"net/http"
 
 	types "github.com/thecodeteam/goscaleio/types/v1"
 )
 
-func (client *Client) GetInstance(systemhref string) (systems []*types.System, err error) {
+func (c *Client) GetInstance(systemhref string) ([]*types.System, error) {
 
-	endpoint := client.SIOEndpoint
+	var (
+		err     error
+		system  = &types.System{}
+		systems []*types.System
+	)
+
 	if systemhref == "" {
-		endpoint.Path += "/types/System/instances"
+		err = c.getJSONWithRetry(
+			http.MethodGet, "api/types/System/instances", nil, &systems)
 	} else {
-		endpoint.Path = systemhref
+		err = c.getJSONWithRetry(
+			http.MethodGet, systemhref, nil, system)
 	}
-
-	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
-
-	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
-		return []*types.System{}, fmt.Errorf("problem getting response: %v", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
 
-	if systemhref == "" {
-		if err = client.decodeBody(resp, &systems); err != nil {
-			return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
-		}
-	} else {
-		system := &types.System{}
-		if err = client.decodeBody(resp, &system); err != nil {
-			return []*types.System{}, fmt.Errorf("error decoding instances response: %s", err)
-		}
+	if systemhref != "" {
 		systems = append(systems, system)
 	}
-
-	// bs, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return types.Systems{}, errors.New("error reading body")
-	// }
 
 	return systems, nil
 }
 
-func (client *Client) GetVolume(volumehref, volumeid, ancestorvolumeid, volumename string, getSnapshots bool) (volumes []*types.Volume, err error) {
+func (c *Client) GetVolume(
+	volumehref, volumeid, ancestorvolumeid, volumename string,
+	getSnapshots bool) ([]*types.Volume, error) {
 
-	endpoint := client.SIOEndpoint
+	var (
+		err     error
+		path    string
+		volume  = &types.Volume{}
+		volumes []*types.Volume
+	)
 
 	if volumename != "" {
-		volumeid, err = client.FindVolumeID(volumename)
+		volumeid, err = c.FindVolumeID(volumename)
 		if err != nil && err.Error() == "Not found" {
 			return nil, nil
 		}
 		if err != nil {
-			return []*types.Volume{}, fmt.Errorf("Error: problem finding volume: %s", err)
+			return nil, fmt.Errorf("Error: problem finding volume: %s", err)
 		}
 	}
 
 	if volumeid != "" {
-		endpoint.Path = fmt.Sprintf("/api/instances/Volume::%s", volumeid)
+		path = fmt.Sprintf("/api/instances/Volume::%s", volumeid)
 	} else if volumehref == "" {
-		endpoint.Path = "/api/types/Volume/instances"
+		path = "/api/types/Volume/instances"
 	} else {
-		endpoint.Path = volumehref
+		path = volumehref
 	}
-
-	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
-
-	resp, err := client.retryCheckResp(&client.Http, req)
-	if err != nil {
-		return []*types.Volume{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
 
 	if volumehref == "" && volumeid == "" {
-		if err = client.decodeBody(resp, &volumes); err != nil {
-			return []*types.Volume{}, fmt.Errorf("error decoding storage pool response: %s", err)
-		}
+		err = c.getJSONWithRetry(
+			http.MethodGet, path, nil, &volumes)
+	} else {
+		err = c.getJSONWithRetry(
+			http.MethodGet, path, nil, volume)
+
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if volumehref == "" && volumeid == "" {
 		var volumesNew []*types.Volume
 		for _, volume := range volumes {
 			if (!getSnapshots && volume.AncestorVolumeID == ancestorvolumeid) || (getSnapshots && volume.AncestorVolumeID != "") {
@@ -94,59 +84,35 @@ func (client *Client) GetVolume(volumehref, volumeid, ancestorvolumeid, volumena
 		}
 		volumes = volumesNew
 	} else {
-		volume := &types.Volume{}
-		if err = client.decodeBody(resp, &volume); err != nil {
-			return []*types.Volume{}, fmt.Errorf("error decoding instances response: %s", err)
-		}
 		volumes = append(volumes, volume)
 	}
 	return volumes, nil
 }
 
-func (client *Client) FindVolumeID(volumename string) (volumeID string, err error) {
+func (c *Client) FindVolumeID(volumename string) (string, error) {
 
-	endpoint := client.SIOEndpoint
-
-	volumeQeryIdByKeyParam := &types.VolumeQeryIdByKeyParam{}
-	volumeQeryIdByKeyParam.Name = volumename
-
-	jsonOutput, err := json.Marshal(&volumeQeryIdByKeyParam)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling: %s", err)
+	volumeQeryIdByKeyParam := &types.VolumeQeryIdByKeyParam{
+		Name: volumename,
 	}
-	endpoint.Path = fmt.Sprintf("/api/types/Volume/instances/action/queryIdByKey")
 
-	req := client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+client.configConnect.Version)
+	path := fmt.Sprintf("/api/types/Volume/instances/action/queryIdByKey")
 
-	resp, err := client.retryCheckResp(&client.Http, req)
+	volumeID, err := c.getStringWithRetry(http.MethodPost, path,
+		volumeQeryIdByKeyParam)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-
-	bs, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.New("error reading body")
-	}
-
-	volumeID = string(bs)
-
-	volumeID = strings.TrimRight(volumeID, `"`)
-	volumeID = strings.TrimLeft(volumeID, `"`)
 
 	return volumeID, nil
 }
 
-func (client *Client) CreateVolume(volume *types.VolumeParam, storagePoolName string) (volumeResp *types.VolumeResp, err error) {
+func (c *Client) CreateVolume(
+	volume *types.VolumeParam,
+	storagePoolName string) (*types.VolumeResp, error) {
 
-	endpoint := client.SIOEndpoint
+	path := "/api/types/Volume/instances"
 
-	endpoint.Path = "/api/types/Volume/instances"
-
-	storagePool, err := client.FindStoragePool("", storagePoolName, "")
+	storagePool, err := c.FindStoragePool("", storagePoolName, "")
 	if err != nil {
 		return nil, err
 	}
@@ -154,75 +120,56 @@ func (client *Client) CreateVolume(volume *types.VolumeParam, storagePoolName st
 	volume.StoragePoolID = storagePool.ID
 	volume.ProtectionDomainID = storagePool.ProtectionDomainID
 
-	jsonOutput, err := json.Marshal(&volume)
+	vol := &types.VolumeResp{}
+	err = c.getJSONWithRetry(
+		http.MethodPost, path, volume, vol)
 	if err != nil {
-		return &types.VolumeResp{}, fmt.Errorf("error marshaling: %s", err)
+		return nil, err
 	}
 
-	req := client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+client.configConnect.Version)
-
-	resp, err := client.retryCheckResp(&client.Http, req)
-	if err != nil {
-		return &types.VolumeResp{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = client.decodeBody(resp, &volumeResp); err != nil {
-		return &types.VolumeResp{}, fmt.Errorf("error decoding volume creation response: %s", err)
-	}
-
-	return volumeResp, nil
+	return vol, nil
 }
 
-func (client *Client) GetStoragePool(storagepoolhref string) (storagePools []*types.StoragePool, err error) {
+func (c *Client) GetStoragePool(
+	storagepoolhref string) ([]*types.StoragePool, error) {
 
-	endpoint := client.SIOEndpoint
+	var (
+		err          error
+		storagePool  = &types.StoragePool{}
+		storagePools []*types.StoragePool
+	)
 
 	if storagepoolhref == "" {
-		endpoint.Path = "/api/types/StoragePool/instances"
+		err = c.getJSONWithRetry(
+			http.MethodGet, "/api/types/StoragePool/instances",
+			nil, &storagePools)
 	} else {
-		endpoint.Path = storagepoolhref
+		err = c.getJSONWithRetry(
+			http.MethodGet, storagepoolhref, nil, storagePool)
 	}
-
-	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", client.Token)
-	req.Header.Add("Accept", "application/json;version="+client.configConnect.Version)
-
-	resp, err := client.retryCheckResp(&client.Http, req)
 	if err != nil {
-		return []*types.StoragePool{}, fmt.Errorf("problem getting response: %v", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
 
-	if storagepoolhref == "" {
-		if err = client.decodeBody(resp, &storagePools); err != nil {
-			return []*types.StoragePool{}, fmt.Errorf("error decoding storage pool response: %s", err)
-		}
-	} else {
-		storagePool := &types.StoragePool{}
-		if err = client.decodeBody(resp, &storagePool); err != nil {
-			return []*types.StoragePool{}, fmt.Errorf("error decoding instances response: %s", err)
-		}
+	if storagepoolhref != "" {
 		storagePools = append(storagePools, storagePool)
 	}
 	return storagePools, nil
 }
 
-func (client *Client) FindStoragePool(id, name, href string) (storagePool *types.StoragePool, err error) {
-	storagePools, err := client.GetStoragePool(href)
+func (c *Client) FindStoragePool(
+	id, name, href string) (*types.StoragePool, error) {
+
+	storagePools, err := c.GetStoragePool(href)
 	if err != nil {
-		return &types.StoragePool{}, fmt.Errorf("Error getting storage pool %s", err)
+		return nil, fmt.Errorf("Error getting storage pool %s", err)
 	}
 
-	for _, storagePool = range storagePools {
+	for _, storagePool := range storagePools {
 		if storagePool.ID == id || storagePool.Name == name || href != "" {
 			return storagePool, nil
 		}
 	}
 
-	return &types.StoragePool{}, errors.New("Couldn't find storage pool")
-
+	return nil, errors.New("Couldn't find storage pool")
 }

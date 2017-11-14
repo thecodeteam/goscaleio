@@ -1,11 +1,9 @@
 package goscaleio
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"reflect"
 
 	types "github.com/thecodeteam/goscaleio/types/v1"
@@ -18,7 +16,7 @@ type Sds struct {
 
 func NewSds(client *Client) *Sds {
 	return &Sds{
-		Sds:    new(types.Sds),
+		Sds:    &types.Sds{},
 		client: client,
 	}
 }
@@ -30,12 +28,13 @@ func NewSdsEx(client *Client, sds *types.Sds) *Sds {
 	}
 }
 
-func (protectionDomain *ProtectionDomain) CreateSds(name string, ipList []string) (string, error) {
-	endpoint := protectionDomain.client.SIOEndpoint
+func (pd *ProtectionDomain) CreateSds(
+	name string, ipList []string) (string, error) {
 
-	sdsParam := &types.SdsParam{}
-	sdsParam.Name = name
-	sdsParam.ProtectionDomainID = protectionDomain.ProtectionDomain.ID
+	sdsParam := &types.SdsParam{
+		Name:               name,
+		ProtectionDomainID: pd.ProtectionDomain.ID,
+	}
 
 	if len(ipList) == 0 {
 		return "", fmt.Errorf("Must provide at least 1 SDS IP")
@@ -52,30 +51,11 @@ func (protectionDomain *ProtectionDomain) CreateSds(name string, ipList []string
 		sdsParam.IPList = append(sdsParam.IPList, sdsIPList2)
 	}
 
-	jsonOutput, err := json.Marshal(&sdsParam)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling: %s", err)
-	}
-	endpoint.Path = fmt.Sprintf("/api/types/Sds/instances")
+	path := fmt.Sprintf("/api/types/Sds/instances")
 
-	req := protectionDomain.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", protectionDomain.client.Token)
-	req.Header.Add("Accept", "application/json;version="+protectionDomain.client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+protectionDomain.client.configConnect.Version)
-
-	resp, err := protectionDomain.client.retryCheckResp(&protectionDomain.client.Http, req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	bs, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.New("error reading body")
-	}
-
-	var sds types.SdsResp
-	err = json.Unmarshal(bs, &sds)
+	sds := types.SdsResp{}
+	err := pd.client.getJSONWithRetry(
+		http.MethodPost, path, sdsParam, &sds)
 	if err != nil {
 		return "", err
 	}
@@ -83,31 +63,27 @@ func (protectionDomain *ProtectionDomain) CreateSds(name string, ipList []string
 	return sds.ID, nil
 }
 
-func (protectionDomain *ProtectionDomain) GetSds() (sdss []types.Sds, err error) {
-	endpoint := protectionDomain.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/ProtectionDomain::%v/relationships/Sds", protectionDomain.ProtectionDomain.ID)
+func (pd *ProtectionDomain) GetSds() ([]types.Sds, error) {
 
-	req := protectionDomain.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", protectionDomain.client.Token)
-	req.Header.Add("Accept", "application/json;version="+protectionDomain.client.configConnect.Version)
+	path := fmt.Sprintf("/api/instances/ProtectionDomain::%v/relationships/Sds",
+		pd.ProtectionDomain.ID)
 
-	resp, err := protectionDomain.client.retryCheckResp(&protectionDomain.client.Http, req)
+	var sdss []types.Sds
+	err := pd.client.getJSONWithRetry(
+		http.MethodGet, path, nil, &sdss)
 	if err != nil {
-		return []types.Sds{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = protectionDomain.client.decodeBody(resp, &sdss); err != nil {
-		return []types.Sds{}, fmt.Errorf("error decoding instances response: %s", err)
+		return nil, err
 	}
 
 	return sdss, nil
 }
 
-func (protectionDomain *ProtectionDomain) FindSds(field, value string) (sds *types.Sds, err error) {
-	sdss, err := protectionDomain.GetSds()
+func (pd *ProtectionDomain) FindSds(
+	field, value string) (*types.Sds, error) {
+
+	sdss, err := pd.GetSds()
 	if err != nil {
-		return &types.Sds{}, nil
+		return nil, err
 	}
 
 	for _, sds := range sdss {
@@ -118,5 +94,5 @@ func (protectionDomain *ProtectionDomain) FindSds(field, value string) (sds *typ
 		}
 	}
 
-	return &types.Sds{}, errors.New("Couldn't find SDS")
+	return nil, errors.New("Couldn't find SDS")
 }

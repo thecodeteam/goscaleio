@@ -1,11 +1,9 @@
 package goscaleio
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"reflect"
 
 	types "github.com/thecodeteam/goscaleio/types/v1"
@@ -18,7 +16,7 @@ type Device struct {
 
 func NewDevice(client *Client) *Device {
 	return &Device{
-		Device: new(types.Device),
+		Device: &types.Device{},
 		client: client,
 	}
 }
@@ -30,40 +28,21 @@ func NewDeviceEx(client *Client, device *types.Device) *Device {
 	}
 }
 
-func (storagePool *StoragePool) AttachDevice(path string, sdsID string) (string, error) {
-	endpoint := storagePool.client.SIOEndpoint
+func (sp *StoragePool) AttachDevice(
+	path string,
+	sdsID string) (string, error) {
 
-	deviceParam := &types.DeviceParam{}
-	deviceParam.Name = path
-	deviceParam.DeviceCurrentPathname = path
-	deviceParam.StoragePoolID = storagePool.StoragePool.ID
-	deviceParam.SdsID = sdsID
-	deviceParam.TestMode = "testAndActivate"
+	deviceParam := &types.DeviceParam{
+		Name: path,
+		DeviceCurrentPathname: path,
+		StoragePoolID:         sp.StoragePool.ID,
+		SdsID:                 sdsID,
+		TestMode:              "testAndActivate"}
 
-	jsonOutput, err := json.Marshal(&deviceParam)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling: %s", err)
-	}
-	endpoint.Path = fmt.Sprintf("/api/types/Device/instances")
-
-	req := storagePool.client.NewRequest(map[string]string{}, "POST", endpoint, bytes.NewBufferString(string(jsonOutput)))
-	req.SetBasicAuth("", storagePool.client.Token)
-	req.Header.Add("Accept", "application/json;version="+storagePool.client.configConnect.Version)
-	req.Header.Add("Content-Type", "application/json;version="+storagePool.client.configConnect.Version)
-
-	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	bs, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.New("error reading body")
-	}
-
-	var dev types.DeviceResp
-	err = json.Unmarshal(bs, &dev)
+	dev := types.DeviceResp{}
+	err := sp.client.getJSONWithRetry(
+		http.MethodPost, "/api/types/Device/instances",
+		deviceParam, &dev)
 	if err != nil {
 		return "", err
 	}
@@ -71,31 +50,28 @@ func (storagePool *StoragePool) AttachDevice(path string, sdsID string) (string,
 	return dev.ID, nil
 }
 
-func (storagePool *StoragePool) GetDevice() (devices []types.Device, err error) {
-	endpoint := storagePool.client.SIOEndpoint
-	endpoint.Path = fmt.Sprintf("/api/instances/StoragePool::%v/relationships/Device", storagePool.StoragePool.ID)
+func (sp *StoragePool) GetDevice() ([]types.Device, error) {
 
-	req := storagePool.client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", storagePool.client.Token)
-	req.Header.Add("Accept", "application/json;version="+storagePool.client.configConnect.Version)
+	path := fmt.Sprintf(
+		"/api/instances/StoragePool::%v/relationships/Device",
+		sp.StoragePool.ID)
 
-	resp, err := storagePool.client.retryCheckResp(&storagePool.client.Http, req)
+	var devices []types.Device
+	err := sp.client.getJSONWithRetry(
+		http.MethodGet, path, nil, &devices)
 	if err != nil {
-		return []types.Device{}, fmt.Errorf("problem getting response: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if err = storagePool.client.decodeBody(resp, &devices); err != nil {
-		return []types.Device{}, fmt.Errorf("error decoding instances response: %s", err)
+		return nil, err
 	}
 
 	return devices, nil
 }
 
-func (storagePool *StoragePool) FindDevice(field, value string) (device *types.Device, err error) {
-	devices, err := storagePool.GetDevice()
+func (sp *StoragePool) FindDevice(
+	field, value string) (*types.Device, error) {
+
+	devices, err := sp.GetDevice()
 	if err != nil {
-		return &types.Device{}, nil
+		return nil, err
 	}
 
 	for _, device := range devices {
@@ -106,5 +82,5 @@ func (storagePool *StoragePool) FindDevice(field, value string) (device *types.D
 		}
 	}
 
-	return &types.Device{}, errors.New("Couldn't find DEV")
+	return nil, errors.New("Couldn't find DEV")
 }

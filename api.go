@@ -2,31 +2,38 @@ package goscaleio
 
 import (
 	"bytes"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/json"
+	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
-	"time"
 
-	types "github.com/thecodeteam/goscaleio/types/v1"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/thecodeteam/goscaleio/api"
+	types "github.com/thecodeteam/goscaleio/types/v1"
+)
+
+var (
+	accHeader string
+	conHeader string
+
+	errNilReponse = errors.New("nil response from API")
+	errBodyRead   = errors.New("error reading body")
+	errNoLink     = errors.New("Error: problem finding link")
+
+	debug, _    = strconv.ParseBool(os.Getenv("GOSCALEIO_DEBUG"))
+	showHTTP, _ = strconv.ParseBool(os.Getenv("GOSCALEIO_SHOWHTTP"))
 )
 
 type Client struct {
-	Token         string
-	SIOEndpoint   url.URL
-	Http          http.Client
-	Insecure      string
-	ShowBody      bool
 	configConnect *ConfigConnect
+	api           api.Client
 }
 
 type Cluster struct {
@@ -44,33 +51,27 @@ type ClientPersistent struct {
 	client        *Client
 }
 
-func (client *Client) getVersion() (string, error) {
-	endpoint := client.SIOEndpoint
-	endpoint.Path = "/api/version"
+func (c *Client) getVersion() (string, error) {
 
-	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth("", client.Token)
-
-	resp, err := client.retryCheckResp(&client.Http, req)
+	resp, err := c.api.DoAndGetResponseBody(
+		context.Background(), http.MethodGet, "/api/version", nil, nil)
 	if err != nil {
-		return "", fmt.Errorf("problem getting response: %v", err)
+		return "", err
 	}
 	defer resp.Body.Close()
 
-	bs, err := ioutil.ReadAll(resp.Body)
+	// parse the response
+	switch {
+	case resp == nil:
+		return "", errNilReponse
+	case !(resp.StatusCode >= 200 && resp.StatusCode <= 299):
+		return "", c.api.ParseJSONError(resp)
+	}
+
+	version, err := extractString(resp)
 	if err != nil {
-		return "", errors.New("error reading body")
+		return "", err
 	}
-
-	version := string(bs)
-
-	if client.ShowBody {
-		log.WithField("body", version).Debug(
-			"printing version message body")
-	}
-
-	version = strings.TrimRight(version, `"`)
-	version = strings.TrimLeft(version, `"`)
 
 	versionRX := regexp.MustCompile(`^(\d+?\.\d+?).*$`)
 	if m := versionRX.FindStringSubmatch(version); len(m) > 0 {
@@ -79,58 +80,59 @@ func (client *Client) getVersion() (string, error) {
 	return version, nil
 }
 
-func (client *Client) updateVersion() error {
+func (c *Client) updateVersion() error {
 
-	version, err := client.getVersion()
+	version, err := c.getVersion()
 	if err != nil {
 		return err
 	}
-	client.configConnect.Version = version
+	c.configConnect.Version = version
+
+	accHeader = api.HeaderValContentTypeJSON
+	if version != "" {
+		accHeader = accHeader + ";version=" + version
+	}
+	conHeader = accHeader
 
 	return nil
 }
 
-func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error) {
+func (c *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error) {
 
-	configConnect.Version = client.configConnect.Version
-	client.configConnect = configConnect
+	configConnect.Version = c.configConnect.Version
+	c.configConnect = configConnect
 
-	endpoint := client.SIOEndpoint
-	endpoint.Path += "/login"
+	c.api.SetToken("")
 
-	req := client.NewRequest(map[string]string{}, "GET", endpoint, nil)
-	req.SetBasicAuth(configConnect.Username, configConnect.Password)
+	headers := make(map[string]string, 1)
+	headers["Authorization"] = "Basic " + basicAuth(
+		configConnect.Username, configConnect.Password)
 
-	httpClient := &client.Http
-	resp, errBody, err := client.checkResp(httpClient.Do(req))
-	if errBody == nil && err != nil {
+	resp, err := c.api.DoAndGetResponseBody(
+		context.Background(), http.MethodGet, "api/login", headers, nil)
+	if err != nil {
+		log.WithError(err).Error()
 		return Cluster{}, err
-	} else if errBody != nil && err != nil {
-		if resp == nil {
-			return Cluster{}, errors.New("Problem getting response from endpoint")
-		}
-		return Cluster{}, errors.New(errBody.Message)
 	}
 	defer resp.Body.Close()
 
-	bs, err := ioutil.ReadAll(resp.Body)
+	// parse the response
+	switch {
+	case resp == nil:
+		return Cluster{}, errNilReponse
+	case !(resp.StatusCode >= 200 && resp.StatusCode <= 299):
+		return Cluster{}, c.api.ParseJSONError(resp)
+	}
+
+	token, err := extractString(resp)
 	if err != nil {
-		return Cluster{}, errors.New("error reading body")
+		return Cluster{}, nil
 	}
 
-	token := string(bs)
+	c.api.SetToken(token)
 
-	if client.ShowBody {
-		log.WithField("body", token).Debug(
-			"printing authentication message body")
-	}
-
-	token = strings.TrimRight(token, `"`)
-	token = strings.TrimLeft(token, `"`)
-	client.Token = token
-
-	if client.configConnect.Version == "" {
-		err = client.updateVersion()
+	if c.configConnect.Version == "" {
+		err = c.updateVersion()
 		if err != nil {
 			return Cluster{}, errors.New("error getting version of ScaleIO")
 		}
@@ -139,154 +141,120 @@ func (client *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error
 	return Cluster{}, nil
 }
 
-//https://github.com/chrislusf/teeproxy/blob/master/teeproxy.go
-type nopCloser struct {
-	io.Reader
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-func (nopCloser) Close() error { return nil }
+func (c *Client) getJSONWithRetry(
+	method, uri string,
+	body, resp interface{}) error {
 
-func DuplicateRequest(request *http.Request) (request1 *http.Request, request2 *http.Request) {
-	request1 = &http.Request{
-		Method:        request.Method,
-		URL:           request.URL,
-		Proto:         "HTTP/1.1",
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		Header:        request.Header,
-		Host:          request.Host,
-		ContentLength: request.ContentLength,
-	}
-	request2 = &http.Request{
-		Method:        request.Method,
-		URL:           request.URL,
-		Proto:         "HTTP/1.1",
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		Header:        request.Header,
-		Host:          request.Host,
-		ContentLength: request.ContentLength,
+	headers := make(map[string]string, 2)
+	headers[api.HeaderKeyAccept] = accHeader
+	headers[api.HeaderKeyContentType] = conHeader
+
+	err := c.api.DoWithHeaders(
+		context.Background(), method, uri, headers, body, resp)
+	if err == nil {
+		return nil
 	}
 
-	if request.Body != nil {
-		b1 := new(bytes.Buffer)
-		b2 := new(bytes.Buffer)
-		w := io.MultiWriter(b1, b2)
-		io.Copy(w, request.Body)
-		request1.Body = nopCloser{b1}
-		request2.Body = nopCloser{b2}
-
-		defer request.Body.Close()
+	// check if we need to authenticate
+	if e, ok := err.(*types.Error); ok {
+		log.WithError(err).Debugf("Got JSON error: %+v", e)
+		if e.HTTPStatusCode == 401 {
+			log.Info("Need to re-auth")
+			// Authenticate then try again
+			if _, err := c.Authenticate(c.configConnect); err != nil {
+				return fmt.Errorf("Error Authenticating: %s", err)
+			}
+			return c.api.Do(
+				context.Background(),
+				method, uri, nil, resp)
+		}
 	}
+	log.WithError(err).Error("Returning error")
 
-	return
+	return err
 }
 
-func (client *Client) retryCheckResp(httpClient *http.Client, req *http.Request) (*http.Response, error) {
+func extractString(resp *http.Response) (string, error) {
+	bs, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errBodyRead
+	}
 
-	req1, req2 := DuplicateRequest(req)
-	resp, errBody, err := client.checkResp(httpClient.Do(req1))
-	if errBody == nil && err != nil {
-		return &http.Response{}, err
-	} else if errBody != nil && err != nil {
-		if resp == nil {
-			return nil, errors.New("Problem getting response from endpoint")
+	s := string(bs)
+
+	s = strings.TrimRight(s, `"`)
+	s = strings.TrimLeft(s, `"`)
+
+	return s, nil
+}
+
+func (c *Client) getStringWithRetry(
+	method, uri string,
+	body interface{}) (string, error) {
+
+	headers := make(map[string]string, 2)
+	headers[api.HeaderKeyAccept] = accHeader
+	headers[api.HeaderKeyContentType] = conHeader
+
+	checkResponse := func(resp *http.Response) (string, bool, error) {
+		defer resp.Body.Close()
+
+		// parse the response
+		switch {
+		case resp == nil:
+			return "", false, errNilReponse
+		case resp.StatusCode == 401:
+			return "", true, c.api.ParseJSONError(resp)
+		case !(resp.StatusCode >= 200 && resp.StatusCode <= 299):
+			return "", false, c.api.ParseJSONError(resp)
 		}
 
-		if resp.StatusCode == 401 && errBody.MajorErrorCode == 0 {
-			_, err := client.Authenticate(client.configConnect)
-			if err != nil {
-				return nil, fmt.Errorf("Error re-authenticating: %s", err)
-			}
+		s, err := extractString(resp)
+		if err != nil {
+			return "", false, err
+		}
 
-			ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
+		return s, false, nil
+	}
 
-			req2.SetBasicAuth("", client.Token)
-			resp, errBody, err = client.checkResp(httpClient.Do(req2))
-			if err != nil {
-				return &http.Response{}, errors.New(errBody.Message)
+	resp, err := c.api.DoAndGetResponseBody(
+		context.Background(), method, uri, headers, body)
+	if err != nil {
+		return "", err
+	}
+	s, retry, httpErr := checkResponse(resp)
+	if httpErr != nil {
+		if retry {
+			log.Info("Need to re-auth")
+			// Authenticate then try again
+			if _, err = c.Authenticate(c.configConnect); err != nil {
+				return "", fmt.Errorf("Error Authenticating: %s", err)
 			}
+			resp, err = c.api.DoAndGetResponseBody(
+				context.Background(), method, uri, headers, body)
+			if err != nil {
+				return "", err
+			}
+			s, _, err = checkResponse(resp)
 		} else {
-			return &http.Response{}, errors.New(errBody.Message)
+			return "", httpErr
 		}
 	}
 
-	return resp, nil
+	return s, nil
 }
 
-func (client *Client) checkResp(resp *http.Response, err error) (*http.Response, *types.Error, error) {
-	if err != nil {
-		return resp, &types.Error{}, err
-	}
-
-	switch i := resp.StatusCode; {
-	// Valid request, return the response.
-	case i == 200 || i == 201 || i == 202 || i == 204:
-		return resp, &types.Error{}, nil
-	// Invalid request, parse the XML error returned and return it.
-	case i == 400 || i == 401 || i == 403 || i == 404 || i == 405 || i == 406 || i == 409 || i == 415 || i == 500 || i == 503 || i == 504:
-		errBody, err := client.parseErr(resp)
-		return resp, errBody, err
-	// Unhandled response.
-	default:
-		return nil, &types.Error{}, fmt.Errorf("unhandled API response, please report this issue, status code: %s", resp.Status)
-	}
+func (c *Client) SetToken(token string) {
+	c.api.SetToken(token)
 }
 
-func (client *Client) decodeBody(resp *http.Response, out interface{}) error {
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if client.ShowBody {
-		var prettyJSON bytes.Buffer
-		_ = json.Indent(&prettyJSON, body, "", "  ")
-		log.WithField("body", prettyJSON.String()).Debug(
-			"print decoded body")
-	}
-
-	if err = json.Unmarshal(body, &out); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (client *Client) parseErr(resp *http.Response) (*types.Error, error) {
-
-	errBody := new(types.Error)
-
-	// if there was an error decoding the body, just return that
-	if err := client.decodeBody(resp, errBody); err != nil {
-		return &types.Error{}, fmt.Errorf("error parsing error body for non-200 request: %s", err)
-	}
-
-	return errBody, fmt.Errorf("API (%d) Error: %d: %s", resp.StatusCode, errBody.MajorErrorCode, errBody.Message)
-}
-
-func (c *Client) NewRequest(params map[string]string, method string, u url.URL, body io.Reader) *http.Request {
-
-	if log.GetLevel() == log.DebugLevel && c.ShowBody && body != nil {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(body)
-		log.WithField("body", buf.String()).Debug("print new request body")
-	}
-
-	p := url.Values{}
-
-	for k, v := range params {
-		p.Add(k, v)
-	}
-
-	u.RawQuery = p.Encode()
-
-	req, _ := http.NewRequest(method, u.String(), body)
-
-	return req
-
+func (c *Client) GetToken() string {
+	return c.api.GetToken()
 }
 
 func NewClient() (client *Client, err error) {
@@ -303,6 +271,17 @@ func NewClientWithArgs(
 	insecure,
 	useCerts bool) (client *Client, err error) {
 
+	if showHTTP {
+		debug = true
+	}
+
+	if !debug {
+		// Disable all output by default
+		log.SetOutput(ioutil.Discard)
+	} else {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	fields := map[string]interface{}{
 		"endpoint": endpoint,
 		"insecure": insecure,
@@ -310,47 +289,38 @@ func NewClientWithArgs(
 		"version":  version,
 	}
 
-	var uri *url.URL
+	log.WithFields(fields).Debug("goscaleio client init")
 
-	if endpoint != "" {
-		uri, err = url.ParseRequestURI(endpoint)
-		if err != nil {
-			return &Client{},
-				withFieldsE(fields, "error parsing endpoint", err)
-		}
-	} else {
-		return &Client{},
+	if endpoint == "" {
+		log.WithFields(fields).Error("endpoint is required")
+		return nil,
 			withFields(fields, "endpoint is required")
 	}
 
+	opts := api.ClientOptions{
+		Insecure: insecure,
+		UseCerts: useCerts,
+		ShowHTTP: showHTTP,
+	}
+
+	ac, err := api.New(context.Background(), endpoint, opts)
+	if err != nil {
+		log.WithError(err).Error("Unable to create HTTP client")
+		return nil, err
+	}
+
 	client = &Client{
-		SIOEndpoint: *uri,
-		Http: http.Client{
-			Transport: &http.Transport{
-				TLSHandshakeTimeout: 120 * time.Second,
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: insecure,
-				},
-			},
+		api: ac,
+		configConnect: &ConfigConnect{
+			Version: version,
 		},
 	}
 
-	if useCerts {
-		pool := x509.NewCertPool()
-		pool.AppendCertsFromPEM(pemCerts)
-
-		client.Http.Transport = &http.Transport{
-			TLSHandshakeTimeout: 120 * time.Second,
-			TLSClientConfig: &tls.Config{
-				RootCAs:            pool,
-				InsecureSkipVerify: insecure,
-			},
-		}
+	accHeader = api.HeaderValContentTypeJSON
+	if version != "" {
+		accHeader = accHeader + ";version=" + version
 	}
-
-	client.configConnect = &ConfigConnect{
-		Version: version,
-	}
+	conHeader = accHeader
 
 	return client, nil
 }
@@ -362,7 +332,7 @@ func GetLink(links []*types.Link, rel string) (*types.Link, error) {
 		}
 	}
 
-	return &types.Link{}, errors.New("Couldn't find link")
+	return nil, errNoLink
 }
 
 func withFields(fields map[string]interface{}, message string) error {
@@ -393,9 +363,5 @@ func withFieldsE(
 		x = x + 1
 	}
 
-	return newf("%s %s", message, b.String())
-}
-
-func newf(format string, a ...interface{}) error {
-	return errors.New(fmt.Sprintf(format, a))
+	return fmt.Errorf("%s %s", message, b.String())
 }
