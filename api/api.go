@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -97,6 +98,7 @@ type client struct {
 	host     string
 	token    string
 	showHTTP bool
+	debug    bool
 }
 
 // ClientOptions are options for the API client.
@@ -119,7 +121,8 @@ type ClientOptions struct {
 func New(
 	ctx context.Context,
 	host string,
-	opts ClientOptions) (Client, error) {
+	opts ClientOptions,
+	debug bool) (Client, error) {
 
 	if host == "" {
 		return nil, errNewClient
@@ -160,6 +163,8 @@ func New(
 	if opts.ShowHTTP {
 		c.showHTTP = true
 	}
+
+	c.debug = debug
 
 	return c, nil
 }
@@ -243,8 +248,9 @@ func (c *client) DoWithHeaders(
 		}
 		dec := json.NewDecoder(res.Body)
 		if err = dec.Decode(resp); err != nil && err != io.EOF {
-			log.WithError(err).Errorf(
-				"Unable to decode response into %+v", resp)
+			c.doLog(log.WithError(err).Error,
+				fmt.Sprintf("Unable to decode response into %+v",
+					resp))
 			return err
 		}
 	default:
@@ -341,7 +347,7 @@ func (c *client) DoAndGetResponseBody(
 	}
 
 	if c.showHTTP {
-		logRequest(ctx, req)
+		logRequest(ctx, req, c.doLog)
 	}
 
 	// send the request
@@ -351,7 +357,7 @@ func (c *client) DoAndGetResponseBody(
 	}
 
 	if c.showHTTP {
-		logResponse(ctx, res)
+		logResponse(ctx, res, c.doLog)
 	}
 
 	return res, err
@@ -378,4 +384,13 @@ func (c *client) ParseJSONError(r *http.Response) error {
 	}
 
 	return jsonError
+}
+
+func (c *client) doLog(
+	l func(args ...interface{}),
+	msg string) {
+
+	if c.debug {
+		l(msg)
+	}
 }

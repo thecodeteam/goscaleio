@@ -16,7 +16,11 @@ func isBinOctetBody(h http.Header) bool {
 	return h.Get(HeaderKeyContentType) == headerValContentTypeBinaryOctetStream
 }
 
-func logRequest(ctx context.Context, req *http.Request) {
+func logRequest(
+	ctx context.Context,
+	req *http.Request,
+	lf func(func(args ...interface{}), string)) {
+
 	w := &bytes.Buffer{}
 
 	fmt.Fprintln(w)
@@ -32,10 +36,14 @@ func logRequest(ctx context.Context, req *http.Request) {
 	WriteIndented(w, buf)
 	fmt.Fprintln(w)
 
-	log.Debug(w.String())
+	lf(log.Debug, w.String())
 }
 
-func logResponse(ctx context.Context, res *http.Response) {
+func logResponse(
+	ctx context.Context,
+	res *http.Response,
+	lf func(func(args ...interface{}), string)) {
+
 	w := &bytes.Buffer{}
 
 	fmt.Fprintln(w)

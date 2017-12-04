@@ -111,7 +111,7 @@ func (c *Client) Authenticate(configConnect *ConfigConnect) (Cluster, error) {
 	resp, err := c.api.DoAndGetResponseBody(
 		context.Background(), http.MethodGet, "api/login", headers, nil)
 	if err != nil {
-		log.WithError(err).Error()
+		doLog(log.WithError(err).Error, "")
 		return Cluster{}, err
 	}
 	defer resp.Body.Close()
@@ -162,9 +162,9 @@ func (c *Client) getJSONWithRetry(
 
 	// check if we need to authenticate
 	if e, ok := err.(*types.Error); ok {
-		log.WithError(err).Debugf("Got JSON error: %+v", e)
+		doLog(log.WithError(err).Debug, fmt.Sprintf("Got JSON error: %+v", e))
 		if e.HTTPStatusCode == 401 {
-			log.Info("Need to re-auth")
+			doLog(log.Info, "Need to re-auth")
 			// Authenticate then try again
 			if _, err := c.Authenticate(c.configConnect); err != nil {
 				return fmt.Errorf("Error Authenticating: %s", err)
@@ -174,7 +174,7 @@ func (c *Client) getJSONWithRetry(
 				method, uri, nil, resp)
 		}
 	}
-	log.WithError(err).Error("Returning error")
+	doLog(log.WithError(err).Error, "returning error")
 
 	return err
 }
@@ -230,7 +230,7 @@ func (c *Client) getStringWithRetry(
 	s, retry, httpErr := checkResponse(resp)
 	if httpErr != nil {
 		if retry {
-			log.Info("Need to re-auth")
+			doLog(log.Info, "need to re-auth")
 			// Authenticate then try again
 			if _, err = c.Authenticate(c.configConnect); err != nil {
 				return "", fmt.Errorf("Error Authenticating: %s", err)
@@ -275,24 +275,19 @@ func NewClientWithArgs(
 		debug = true
 	}
 
-	if !debug {
-		// Disable all output by default
-		log.SetOutput(ioutil.Discard)
-	} else {
-		log.SetLevel(log.DebugLevel)
-	}
-
 	fields := map[string]interface{}{
 		"endpoint": endpoint,
 		"insecure": insecure,
 		"useCerts": useCerts,
 		"version":  version,
+		"debug":    debug,
+		"showHTTP": showHTTP,
 	}
 
-	log.WithFields(fields).Debug("goscaleio client init")
+	doLog(log.WithFields(fields).Debug, "goscaleio client init")
 
 	if endpoint == "" {
-		log.WithFields(fields).Error("endpoint is required")
+		doLog(log.WithFields(fields).Error, "endpoint is required")
 		return nil,
 			withFields(fields, "endpoint is required")
 	}
@@ -303,9 +298,9 @@ func NewClientWithArgs(
 		ShowHTTP: showHTTP,
 	}
 
-	ac, err := api.New(context.Background(), endpoint, opts)
+	ac, err := api.New(context.Background(), endpoint, opts, debug)
 	if err != nil {
-		log.WithError(err).Error("Unable to create HTTP client")
+		doLog(log.WithError(err).Error, "Unable to create HTTP client")
 		return nil, err
 	}
 
@@ -364,4 +359,13 @@ func withFieldsE(
 	}
 
 	return fmt.Errorf("%s %s", message, b.String())
+}
+
+func doLog(
+	l func(args ...interface{}),
+	msg string) {
+
+	if debug {
+		l(msg)
+	}
 }
