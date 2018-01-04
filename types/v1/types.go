@@ -72,6 +72,7 @@ type Statistics struct {
 	SecondaryVacInKb                         int `json:"secondaryVacInKb"`
 	PendingFwdRebuildCapacityInKb            int `json:"pendingFwdRebuildCapacityInKb"`
 	ThinCapacityInUseInKb                    int `json:"thinCapacityInUseInKb"`
+	ThinCapacityAllocatedInKb                int `json:"thinCapacityAllocatedInKm"`
 	AtRestCapacityInKb                       int `json:"atRestCapacityInKb"`
 	ActiveMovingInBckRebuildJobs             int `json:"activeMovingInBckRebuildJobs"`
 	DegradedHealthyCapacityInKb              int `json:"degradedHealthyCapacityInKb"`
