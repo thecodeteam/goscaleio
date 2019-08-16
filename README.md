@@ -1,3 +1,6 @@
+# This repo is archived
+This project is no longer maintained here. The current maintained version is at https://github.com/dell/goscaleio.
+
 # Goscaleio
 The *Goscaleio* project represents API bindings that can be used to provide ScaleIO functionality into other Go applications.
 
